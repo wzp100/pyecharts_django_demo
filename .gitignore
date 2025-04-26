@@ -1,0 +1,51 @@
+# Python相关
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.pyc
+*.python-version
+
+# Django相关
+*.log
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+.env
+.env.*
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+
+# 编辑器/IDE
+.vscode/
+.idea/
+*.iml
+
+# macOS/Linux
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# 数据缓存
+*.json
+/demo/data/*.json
+/demo/data/__pycache__/
+
+# 其他临时文件
+*.swp
+*.swo
+*.bak
+*.tmp

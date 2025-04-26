@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ year }}年{{ area }}赛区详情</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .school-list {
+            margin-top: 20px;
+        }
+        .school-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ year }}年{{ area }}赛区详情</h1>
+    
+    <div class="school-list">
+        {% for school, count in schools_stats.items %}
+        <div class="school-item">
+            {{ school }}: {{ count }}支队伍
+        </div>
+        {% endfor %}
+    </div>
+    
+    <a href="/" class="back-link">← 返回导航页</a>
+</body>
+</html>

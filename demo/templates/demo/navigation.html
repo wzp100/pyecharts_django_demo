@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年度报告导航</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .year-container {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        .year-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .area-list {
+            margin-left: 20px;
+        }
+        .area-item {
+            margin: 5px 0;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>年度报告导航</h1>
+    
+    {% for year in years %}
+    <div class="year-container">
+        <div class="year-title">
+            <a href="/report/{{ year }}/">{{ year }}年赛区统计</a>
+        </div>
+        
+        {% if years_stats|get_item:year and years_stats|get_item:year.areas %}
+        <div class="area-list">
+            {% for area in years_stats|get_item:year.areas %}
+            <div class="area-item">
+                <a href="/report/{{ year }}/{{ area }}/">{{ area }}</a>
+                (队伍: {{ years_stats|get_item:year.team_counts|get_item:area }}, 人数: {{ years_stats|get_item:year.member_counts|get_item:area }})
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</body>
+</html>
