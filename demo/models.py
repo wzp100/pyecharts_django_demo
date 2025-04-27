@@ -34,7 +34,13 @@ class Team(models.Model):
 
 
 class TeamAchievement(models.Model):
-    team_code = models.ForeignKey(Team, models.DO_NOTHING, db_column='team_code', blank=True, null=True, db_comment='团队代码')
+    team_code = models.OneToOneField(
+        Team,
+        on_delete=models.DO_NOTHING,
+        db_column='team_code',
+        primary_key=True,
+        db_comment='团队代码'
+    )
     preliminary_award = models.CharField(max_length=50, blank=True, null=True, db_comment='初赛奖项')
     enterprise_award = models.CharField(max_length=50, blank=True, null=True, db_comment='企业奖项')
     enterprise_advancement = models.IntegerField(blank=True, null=True, db_comment='企业晋级')
@@ -83,4 +89,36 @@ class TeamMember(models.Model):
         db_table = 'team_member'
         app_label = 'demo'  # 确保这是正确的应用名
         # 添加下面这行指定使用MySQL数据库
+        db_tablespace = 'yyds_mysql'
+
+
+class AreaStats(models.Model):
+    """
+    赛区年度统计信息ORM模型（主要用于导航及数据聚合）
+    新增subproject（子项目/专项/题目组）字段
+    """
+    year = models.CharField(max_length=4, db_comment='年份')
+    area = models.CharField(max_length=50, db_comment='赛区')
+    subproject = models.CharField(max_length=100, blank=True, null=True, db_comment='子项目/专项/题目组')
+    team_count = models.IntegerField(db_comment='队伍数量')
+    member_count = models.IntegerField(db_comment='参赛人数')
+
+    class Meta:
+        managed = True
+        db_table = 'area_stats'
+        app_label = 'demo'
+        db_tablespace = 'yyds_mysql'
+
+class NorthwestSchoolStats(models.Model):
+    """
+    西北赛区各学校年度统计ORM模型
+    """
+    year = models.CharField(max_length=4, db_comment='年份')
+    school = models.CharField(max_length=100, db_comment='学校')
+    team_count = models.IntegerField(db_comment='队伍数量')
+
+    class Meta:
+        managed = True
+        db_table = 'northwest_school_stats'
+        app_label = 'demo'
         db_tablespace = 'yyds_mysql'

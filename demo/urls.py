@@ -18,9 +18,22 @@ Including another URLconf
 from django.urls import path,re_path
 from demo import views
 
+app_name = 'demo'
+
 urlpatterns = [
     # path('admin/', admin.site.urls),
-    path('', views.navigation_view, name='navigation'), # 根路径指向导航页
-    path('report/<int:year>/', views.yearly_report, name='yearly_report'), # 按年份显示报告
-    path('update-json-data/', views.update_all_json_data, name='update_json_data'),
+    # path('', views.navigation_view, name='navigation'), # 根路径指向导航页
+    # 五年汇总分析
+    path(
+        'report/2019-2023/',
+        views.five_year_report,
+        name='five_year_report'
+    ),
+    # 按年份显示报告
+    path('report/<int:year>/', views.yearly_report, name='yearly_report'),
+    # 赛区详情页
+    path('area/<int:year>/<str:area>/', views.area_detail_view, name='area_detail'), 
+    # 学校详情页
+    path('school/<int:year>/<str:school>/', views.school_detail_view, name='school_detail'), 
+    # path('update-json-data/', views.update_all_json_data, name='update_json_data'),
 ]
