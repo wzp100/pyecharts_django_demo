@@ -92,33 +92,57 @@ class TeamMember(models.Model):
         db_tablespace = 'yyds_mysql'
 
 
-class AreaStats(models.Model):
+class SchoolYearlyCache(models.Model):
     """
-    赛区年度统计信息ORM模型（主要用于导航及数据聚合）
-    新增subproject（子项目/专项/题目组）字段
+    缓存按 年+赛区+学校 汇总的统计数据
     """
-    year = models.CharField(max_length=4, db_comment='年份')
-    area = models.CharField(max_length=50, db_comment='赛区')
-    subproject = models.CharField(max_length=100, blank=True, null=True, db_comment='子项目/专项/题目组')
-    team_count = models.IntegerField(db_comment='队伍数量')
-    member_count = models.IntegerField(db_comment='参赛人数')
+    year       = models.CharField(max_length=4)
+    area       = models.CharField(max_length=50)
+    school     = models.CharField(max_length=100)
+    participant_count      = models.IntegerField(default=0)
+    team_count             = models.IntegerField(default=0)
+    award_count            = models.IntegerField(default=0)
+    first_prize_count      = models.IntegerField(default=0)
+    second_prize_count     = models.IntegerField(default=0)
+    qualification_count    = models.IntegerField(default=0)
+    final_first_prize_count= models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = True
-        db_table = 'area_stats'
-        app_label = 'demo'
-        db_tablespace = 'yyds_mysql'
+        unique_together = (("year", "area", "school"),)
+        indexes = [
+            models.Index(fields=["year", "area"]),
+        ]
+        verbose_name = "学校年度统计缓存"
+        verbose_name_plural = verbose_name
 
-class NorthwestSchoolStats(models.Model):
-    """
-    西北赛区各学校年度统计ORM模型
-    """
-    year = models.CharField(max_length=4, db_comment='年份')
-    school = models.CharField(max_length=100, db_comment='学校')
-    team_count = models.IntegerField(db_comment='队伍数量')
-
-    class Meta:
-        managed = True
-        db_table = 'northwest_school_stats'
-        app_label = 'demo'
-        db_tablespace = 'yyds_mysql'
+# class AreaStats(models.Model):
+#     """
+#     赛区年度统计信息ORM模型（主要用于导航及数据聚合）
+#     新增subproject（子项目/专项/题目组）字段
+#     """
+#     year = models.CharField(max_length=4, db_comment='年份')
+#     area = models.CharField(max_length=50, db_comment='赛区')
+#     subproject = models.CharField(max_length=100, blank=True, null=True, db_comment='子项目/专项/题目组')
+#     team_count = models.IntegerField(db_comment='队伍数量')
+#     member_count = models.IntegerField(db_comment='参赛人数')
+#
+#     class Meta:
+#         managed = True
+#         db_table = 'area_stats'
+#         app_label = 'demo'
+#         db_tablespace = 'yyds_mysql'
+#
+# class NorthwestSchoolStats(models.Model):
+#     """
+#     西北赛区各学校年度统计ORM模型
+#     """
+#     year = models.CharField(max_length=4, db_comment='年份')
+#     school = models.CharField(max_length=100, db_comment='学校')
+#     team_count = models.IntegerField(db_comment='队伍数量')
+#
+#     class Meta:
+#         managed = True
+#         db_table = 'northwest_school_stats'
+#         app_label = 'demo'
+#         db_tablespace = 'yyds_mysql'

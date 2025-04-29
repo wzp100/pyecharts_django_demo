@@ -72,7 +72,7 @@ WSGI_APPLICATION = 'pyecharts_django_demo.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+# TODO: 需要想办法将数据库配置分离到单独的文件中
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',

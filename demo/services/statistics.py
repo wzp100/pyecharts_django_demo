@@ -1,9 +1,11 @@
-from demo.models import AreaStats, NorthwestSchoolStats
+# from demo.models import AreaStats, NorthwestSchoolStats
 from django.db import models
 from demo.models import Team, TeamMember, TeamAchievement
 from .cache import load_data_from_json, save_data_to_json
 from django.db.models import Count
 
+
+# TODO: 要补全的函数
 def get_area_stats(year: int) -> dict:
     # """从 AreaStats 表查询某年各赛区 & 子项目的队伍和人数统计。"""
     # qs = AreaStats.objects.filter(year=year)
@@ -121,7 +123,7 @@ def get_area_full_stats(year: int, area: str) -> dict:
 
     return school_stats
 
-
+# TODO: 需要加入缓存机制
 def get_school_yearly_stats(year: int, area: str) -> dict:
     """
     返回指定年份、指定赛区的各学校统计：
