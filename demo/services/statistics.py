@@ -2,6 +2,7 @@ from demo.models import AreaStats, NorthwestSchoolStats
 from django.db import models
 from demo.models import Team, TeamMember, TeamAchievement
 from .cache import load_data_from_json, save_data_to_json
+from django.db.models import Count
 
 def get_area_stats(year: int) -> dict:
     # """从 AreaStats 表查询某年各赛区 & 子项目的队伍和人数统计。"""
@@ -48,7 +49,7 @@ def get_area_detail_stats(year: int, area: str) -> dict:
     # 2. 从数据库查询指定年份、指定赛区的队伍
     qs = Team.objects.filter(
         competition_zone=area,
-        create_year=year
+        create_year=str(year)
     )
     for team in qs:
         # 1) 尝试按 member_type 找队长
@@ -126,30 +127,40 @@ def get_school_yearly_stats(year: int, area: str) -> dict:
     返回指定年份、指定赛区的各学校统计：
     {
       school_name: {
+        'participant_count': int,   # 新增：参赛人数
         'team_count': int,
         'award_count': int,
-        'first_prize_count': int,   # 分赛区一等奖，包括“晋级”
+        'first_prize_count': int,
         'second_prize_count': int,
-        'qualification_count': int, # 晋级总数
-        'final_first_prize_count': int,  # 决赛一等奖
+        'qualification_count': int,
+        'final_first_prize_count': int,
       }, …
     }
     """
-    cache_key = f'school_yearly_stats_{area}_{year}.json'
-    data = load_data_from_json(cache_key)
-    if data is not None:
-        return data
-
     stats: dict = {}
 
-    # 1. 只取本区、本年的团队
+    # 1. 先筛本区、本年所有团队
     teams = Team.objects.filter(
         competition_zone=area,
         create_year=str(year)
     )
+    team_codes = list(teams.values_list('team_code', flat=True))
 
+    # 2. 统计每个学校的参赛人数（按 TeamMember.school）
+    member_qs = TeamMember.objects.filter(
+        create_year=str(year),
+        team_code__in=team_codes
+    )
+    participants = (
+        member_qs
+        .values('school')
+        .annotate(count=Count('member_code'))
+    )
+    parts_map = {row['school']: row['count'] for row in participants}
+
+    # 3. 按队长所在学校统计其他指标
     for team in teams:
-        # 2. 找队长（优先 member_type='队长'，否则 member_type_detail 包含“队长”）
+        # 找队长确定学校
         captain_qs = TeamMember.objects.filter(
             team_code=team.team_code,
             create_year=str(year),
@@ -167,14 +178,13 @@ def get_school_yearly_stats(year: int, area: str) -> dict:
             captain = captain_qs.first() if captain_qs else None
 
         if not captain or not captain.school:
-            # 跳过无队长或无学校信息的团队
             continue
-
         school = captain.school
 
-        # 3. 初始化
+        # 初始化
         if school not in stats:
             stats[school] = {
+                'participant_count': parts_map.get(school, 0),
                 'team_count': 0,
                 'award_count': 0,
                 'first_prize_count': 0,
@@ -182,9 +192,13 @@ def get_school_yearly_stats(year: int, area: str) -> dict:
                 'qualification_count': 0,
                 'final_first_prize_count': 0,
             }
+        else:
+            # 确保 participant_count 也在，即使循环多次
+            stats[school]['participant_count'] = parts_map.get(school, 0)
+
         stats[school]['team_count'] += 1
 
-        # 4. 拉成绩
+        # 拉成绩
         try:
             ach = TeamAchievement.objects.get(
                 team_code=team,
@@ -192,8 +206,12 @@ def get_school_yearly_stats(year: int, area: str) -> dict:
             )
         except TeamAchievement.DoesNotExist:
             ach = None
+        except TeamAchievement.MultipleObjectsReturned:
+            ach = TeamAchievement.objects.filter(
+                team_code=team,
+                year=str(year)
+            ).first()
 
-        # 5. 初赛奖项（“一等奖”或“晋级”都算 first_prize）
         if ach and ach.preliminary_award:
             stats[school]['award_count'] += 1
             pre = ach.preliminary_award or ""
@@ -202,24 +220,40 @@ def get_school_yearly_stats(year: int, area: str) -> dict:
             elif '二等奖' in pre:
                 stats[school]['second_prize_count'] += 1
 
-        # 6. 晋级总数
-        if ach and ach.enterprise_advancement:
+        if ach and ach.preliminary_award and '晋级' in ach.preliminary_award:
             stats[school]['qualification_count'] += 1
 
-        # 7. 决赛一等奖
         if ach and (
             (ach.final_technology and '一等奖' in ach.final_technology) or
             (ach.final_business   and '一等奖' in ach.final_business)
         ):
             stats[school]['final_first_prize_count'] += 1
 
-    # 8. 按队伍数降序
+    # 4. 按队伍数降序
     stats = dict(
         sorted(stats.items(),
                key=lambda kv: kv[1]['team_count'],
                reverse=True)
     )
-
-    # 9. 缓存并返回
-    save_data_to_json(stats, cache_key)
     return stats
+
+def get_school_yearly_stats_range(
+    start_year: int,
+    end_year: int,
+    area: str
+) -> dict[int, dict[str, dict[str, int]]]:
+    """
+    返回指定赛区在 [start_year, end_year] 区间内，各年份的学校统计数据：
+    {
+      2019: { '北大': {...}, '清华': {...}, … },
+      2020: { '北大': {...}, '清华': {...}, … },
+      …
+    }
+    每个内层字典的结构与 get_school_yearly_stats(year, area) 相同。
+    """
+    results: dict[int, dict[str, dict[str, int]]] = {}
+    for y in range(start_year, end_year + 1):
+        # 复用单年函数
+        yearly = get_school_yearly_stats(y, area)
+        results[y] = yearly
+    return results

@@ -15,9 +15,19 @@
       <a href="{% url 'demo:five_year_report' %}">
         2019–2023 五年分析
       </a>
+        <div class="area-container">
+      {% for area in areas %}
+        <div class="area-item">
+          <a href="{% url 'demo:five_year_report' %}">
+            {{ area }}
+          </a>
+        </div>
+      {% endfor %}
+    </div>
     </div>
   </div>
-  
+
+
   <!-- 每年的赛区导航 -->
   {% for year in years %}
     <div class="year-container">

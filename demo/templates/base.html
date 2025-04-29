@@ -1,0 +1,26 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}赛区{% endblock %}</title>
+
+  <!-- 全局表格换行样式 -->
+  <style>
+    table {
+      table-layout: fixed;  /* 表格固定布局，列宽按百分比分配 */
+      width: 100%;          /* 占满容器宽度 */
+    }
+    th, td {
+      white-space: normal;   /* 允许自动换行 */
+      word-wrap: break-word; /* 老浏览器兼容 */
+      word-break: break-all; /* 现代浏览器在单词内也能换行 */
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% block content %}{% endblock %}
+</body>
+</html>

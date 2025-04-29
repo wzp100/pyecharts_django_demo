@@ -29,6 +29,12 @@ urlpatterns = [
         views.five_year_report,
         name='five_year_report'
     ),
+    # 五年各赛区汇总分析
+    path(
+        'report/2019-2023/',
+        views.five_year_report,
+        name='five_year_report'
+    ),
     # 按年份显示报告
     path('report/<int:year>/', views.yearly_report, name='yearly_report'),
     # 赛区详情页

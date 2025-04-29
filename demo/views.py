@@ -3,9 +3,9 @@ from django.http import HttpResponse
 from demo.services.statistics import (
     get_area_stats,
     get_northwest_schools_stats,
-    get_school_yearly_stats
+    get_school_yearly_stats, get_school_yearly_stats_range
 )
-from demo.services.charts import render_area_detail_chart
+from demo.services.charts import render_area_detail_chart, render_area_range_chart
 from pyecharts import options as opts
 from pyecharts.charts import Bar, Page
 
@@ -16,7 +16,7 @@ AREAS = [
     ]
 
 def navigation_view(request):
-    years = [2019, 2020, 2021, 2022, 2023]
+    years = [2019, 2020, 2021, 2022, 2023, 2024]
     
     return render(request, 'demo/navigation.html', {
         'years': years,
@@ -39,7 +39,12 @@ def area_detail_view(request, year: int, area: str):
 
     # 只需一行调用，就能得到完整的 chart HTML
     chart_html = render_area_detail_chart(year, area, stats)
-    return HttpResponse(chart_html)
+    return render(request, 'demo/area_detail.html', {
+        'year': year,
+        'area': area,
+        'stats': stats,
+        'chart_html': chart_html,
+    })
 
 def yearly_report(request, year: int):
     area_stats = get_area_stats(year)
@@ -79,4 +84,6 @@ def school_detail_view(request, year: int, school: str):
 
 
 def five_year_report(request):
-    return HttpResponse("<h1>5年汇总分析</h1>")
+    range_year_stats = get_school_yearly_stats_range(2019, 2024, '西北赛区');
+    page = render_area_range_chart(2019, 2024, '西北赛区', range_year_stats);
+    return HttpResponse(page.render_embed())
