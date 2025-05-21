@@ -1,3 +1,6 @@
+# @file_name: demo/models.py
+
+
 from django.shortcuts import render
 from django.http import HttpResponse
 from demo.services.statistics import (
@@ -16,12 +19,41 @@ AREAS = [
     ]
 
 def navigation_view(request):
+    """
+    显示导航页，包含年份和赛区选择
+    :param request:
+    :return:
+    """
     years = [2019, 2020, 2021, 2022, 2023, 2024]
     
     return render(request, 'demo/navigation.html', {
         'years': years,
         'areas': AREAS,
     })
+
+def range_year_report_all_area_view(request):
+    """
+    显示2019-2023年各赛区的统计数据
+    :param request:
+    :return:
+    """
+    return HttpResponse(f"<h1>功能暂未开发</h1>")
+
+
+
+def range_year_area_report_view(request,start_year: int, end_year: int, area: str):
+    """
+    显示指定年份范围、地区的统计数据
+    :param request:
+    :param start_year:
+    :param end_year:
+    :param area:
+    :return:
+    """
+    range_year_stats = get_school_yearly_stats_range(start_year, end_year, area);
+    page = render_area_range_chart(start_year, end_year, area, range_year_stats);
+    return HttpResponse(page.render_embed())
+
 
 def area_detail_view(request, year: int, area: str):
     """
@@ -46,44 +78,16 @@ def area_detail_view(request, year: int, area: str):
         'chart_html': chart_html,
     })
 
-def yearly_report(request, year: int):
-    area_stats = get_area_stats(year)
-    if not area_stats:
-        return HttpResponse(f"<h1>{year}年赛区统计数据未找到</h1>")
-
-    # 构造 pyecharts 图表
-    areas = list(area_stats.keys())
-    member_counts = [sum(sub['member_count'] for sub in area_stats[a].values()) for a in areas]
-    team_counts   = [sum(sub['team_count']   for sub in area_stats[a].values()) for a in areas]
-
-    bar1 = (
-        Bar()
-        .add_xaxis(areas)
-        .add_yaxis("参赛人数", member_counts)
-        .set_global_opts(title_opts=opts.TitleOpts(title=f"{year}年各赛区参赛人数"))
-    )
-    bar2 = (
-        Bar()
-        .add_xaxis(areas)
-        .add_yaxis("队伍数量", team_counts)
-        .set_global_opts(title_opts=opts.TitleOpts(title=f"{year}年各赛区队伍数量"))
-    )
-    bar3 = (
-        Bar()
-        .add_xaxis(list(get_northwest_schools_stats(year).keys()))
-        .add_yaxis(f"{year}年西北赛区队伍数", list(get_northwest_schools_stats(year).values()))
-        .set_global_opts(title_opts=opts.TitleOpts(title=f"{year}年西北赛区各学校队伍数"))
-    )
-
-    page = Page(layout=Page.SimplePageLayout)
-    page.add(bar1, bar2, bar3)
-    return HttpResponse(page.render_embed())
+def yearly_report_view(request, year: int):
+    """
+    显示指定xx年份的所有赛区的分析
+    :param request:
+    :param year:
+    :return:
+    """
+    return HttpResponse(f"<h1>{year}年xx赛区分析暂未开发</h1>")
     
 def school_detail_view(request, year: int, school: str):
     return HttpResponse(f"<h1>{year}年{school}统计数据未找到</h1>")
 
 
-def five_year_report(request):
-    range_year_stats = get_school_yearly_stats_range(2019, 2024, '西北赛区');
-    page = render_area_range_chart(2019, 2024, '西北赛区', range_year_stats);
-    return HttpResponse(page.render_embed())

@@ -12,13 +12,13 @@
   <!-- 五年汇总分析 -->
   <div class="year-container">
     <div class="year-title">
-      <a href="{% url 'demo:five_year_report' %}">
-        2019–2023 五年分析
+      <a href="{% url 'demo:range_year_report_all_area'%}">
+        2019–2024 五年分析
       </a>
         <div class="area-container">
       {% for area in areas %}
         <div class="area-item">
-          <a href="{% url 'demo:five_year_report' %}">
+          <a href="{% url 'demo:range_year_area_report'  2019 2024 area%}">
             {{ area }}
           </a>
         </div>

@@ -22,24 +22,37 @@ app_name = 'demo'
 
 urlpatterns = [
     # path('admin/', admin.site.urls),
-    # path('', views.navigation_view, name='navigation'), # 根路径指向导航页
-    # 五年汇总分析
+    path('', views.navigation_view, name='navigation'), # 根路径指向导航页
+    # 指定年每年所有赛区汇总分析
     path(
-        'report/2019-2023/',
-        views.five_year_report,
-        name='five_year_report'
+        'range/2019-2023/all/',
+        views.range_year_report_all_area_view,
+        name='range_year_report_all_area'
     ),
-    # 五年各赛区汇总分析
+
+    # 指定范围的各赛区汇总分析
     path(
-        'report/2019-2023/',
-        views.five_year_report,
-        name='five_year_report'
+        'range/<int:start_year>-<int:end_year>/<str:area>/',
+        views.range_year_area_report_view,
+        name='range_year_area_report'
     ),
-    # 按年份显示报告
-    path('report/<int:year>/', views.yearly_report, name='yearly_report'),
+    # 显示指定xx年份的所有赛区的分析
+    path(
+        'report/<int:year>/all/',
+        views.yearly_report_view,
+        name='yearly_report'
+    ),
     # 赛区详情页
-    path('area/<int:year>/<str:area>/', views.area_detail_view, name='area_detail'), 
+    path(
+        'area/<int:year>/<str:area>/',
+        views.area_detail_view,
+        name='area_detail'
+    ),
     # 学校详情页
-    path('school/<int:year>/<str:school>/', views.school_detail_view, name='school_detail'), 
+    path(
+        'school/<int:year>/<str:school>/',
+        views.school_detail_view,
+        name='school_detail'
+    ),
     # path('update-json-data/', views.update_all_json_data, name='update_json_data'),
 ]
