@@ -73,3 +73,10 @@ range/<int:start_year>-<int:end_year>/<str:area>/
 
 # 开发任务
 - [x] 代码分离将画图的函数分解，方便添加图表易于维护
+
+
+# 开发环境配置
+使用.env来隔离开发环境和生产环境
+
+'PASSWORD': 'rootpassword',
+'HOST': '192.168.100.2',

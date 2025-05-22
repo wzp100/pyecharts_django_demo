@@ -1,2 +1,4 @@
-Django~=5.2
-pyecharts~=2.0.8
+Django>=5.2
+pyecharts>=2.0.8
+mysqlclient
+django-environ
