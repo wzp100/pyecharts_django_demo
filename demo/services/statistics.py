@@ -7,9 +7,20 @@ from demo.models import (
 from django.db.models import Count
 from django.db import transaction
 
+STAT_FIELDS: list[str] = [
+    'participant_count',
+    'team_count',
+    'award_count',
+    'first_prize_count',
+    'second_prize_count',
+    'qualification_count',
+    'final_first_prize_count',
+    'no_award_team_count',      # ← 新增字段示例
+]
+
 
 # TODO: 要补全的函数
-def get_area_stats(year: int) -> dict:
+def get_area_stats( ) -> dict:
     # """从 AreaStats 表查询某年各赛区 & 子项目的队伍和人数统计。"""
     # qs = AreaStats.objects.filter(year=year)
     # result = {}
@@ -23,23 +34,6 @@ def get_area_stats(year: int) -> dict:
     # return result
     pass
 
-def get_northwest_schools_stats(year: int) -> dict:
-    # """先尝试读缓存；否则从 NorthwestSchoolStats 表（或原 Team/TeamMember 逻辑）拉取并缓存。"""
-    # filename = f'northwest_schools_{year}.json'
-    # data = load_data_from_json(filename)
-    # if data:
-    #     return data
-    #
-    # qs = NorthwestSchoolStats.objects.filter(year=year).order_by('-team_count')
-    # stats = {row.school: row.team_count for row in qs}
-    #
-    # # 如果你还需要原先的多表查询逻辑，也可以额外写一个函数，
-    # # 在这里回退到那个函数并最终 save_data_to_json(stats, filename)
-    # save_data_to_json(stats, filename)
-    # return stats
-    pass
-
-# demo/services/statistics.py
 
 
 
@@ -72,7 +66,6 @@ def get_area_detail_stats(year: int, area: str) -> dict:
                 models.Q(member_type_detail__contains='队长')
             )
 
-        captain = None
         try:
             captain = captain_qs.get()
         except TeamMember.DoesNotExist:
@@ -115,7 +108,7 @@ def get_area_full_stats(year: int, area: str) -> dict:
     area_team_counts = get_area_detail_stats(year, area)
 
     # 2) 拿到所有学校年度统计
-    all_stats = get_school_yearly_stats(year)
+    all_stats = get_school_yearly_stats(year, area)
 
     # 3) 只保留本区学校，并把 team_count 覆盖到 school_stats 里
     school_stats = {}
@@ -126,130 +119,193 @@ def get_area_full_stats(year: int, area: str) -> dict:
 
     return school_stats
 
-# TODO: 需要加入缓存机制
-# demo/services/statistics.py
-
-
-def get_school_yearly_stats(year: int, area: str) -> dict:
+# ---------- 1. 缓存读取 ---------- #
+def _fetch_cached_stats(year: int, area: str) -> dict | None:
     """
-    先看数据库缓存表 SchoolYearlyCache，
-    不存在时才跑 ORM 计算并写回缓存表。
-    返回 {school: {participant_count, team_count, …}, …}
+    如缓存命中则返回 dict；未命中返回 None
     """
-    # 1. 尝试从缓存表读取
     qs = SchoolYearlyCache.objects.filter(year=str(year), area=area)
-    if qs.exists():
-        # 直接返回 ORM result_to_dict
-        return {
-            c.school: {
-                'participant_count': c.participant_count,
-                'team_count': c.team_count,
-                'award_count': c.award_count,
-                'first_prize_count': c.first_prize_count,
-                'second_prize_count': c.second_prize_count,
-                'qualification_count': c.qualification_count,
-                'final_first_prize_count': c.final_first_prize_count,
-            }
-            for c in qs
-        }
+    if not qs.exists():
+        return None
 
-    # 2. 缓存表空：真正计算
-    stats: dict = {}
+    return {
+        c.school: {
+            'participant_count': c.participant_count,
+            'team_count': c.team_count,
+            'award_count': c.award_count,
+            'first_prize_count': c.first_prize_count,
+            'second_prize_count': c.second_prize_count,
+            'qualification_count': c.qualification_count,
+            'final_first_prize_count': c.final_first_prize_count,
+            'no_award_team_count': c.no_award_team_count,
+        }
+        for c in qs
+    }
+
+
+# ---------- 2. 统计计算 ---------- #
+def _query_raw_data(year: int, area: str):
+    """
+    一次性把原始 QuerySet 拿出来，避免函数间重复 IO
+    :param year: 年份
+    :param area: 赛区名称
+    :return: (teams, participants_map)
+        teams: Team QuerySet，包含指定赛区和年份的所有队伍
+        participants_map: {school_name: participant_count, …} 计算每个学校的参赛人数
+    """
+    # 从团队表中查询指定赛区和年份的所有队伍
     teams = Team.objects.filter(competition_zone=area, create_year=str(year))
+    # 然后查询所有队伍的 team_code
     codes = list(teams.values_list('team_code', flat=True))
 
-    members = (
+
+    # 对每个分组（学校）做聚合计数：COUNT(member_code)，并把结果放在字段别名 count 里
+    members_qs = (
         TeamMember.objects
         .filter(create_year=str(year), team_code__in=codes)
         .values('school')
         .annotate(count=Count('member_code'))
     )
-    parts_map = {r['school']: r['count'] for r in members}
+    participants_map = {r['school']: r['count'] for r in members_qs}
+
+    return teams, participants_map
+
+
+def _pick_captain(team: Team, year: int):
+    """选出队长；有两种标记方式时回退兜底"""
+    base_qs = TeamMember.objects.filter(
+        team_code=team.team_code,
+        create_year=str(year),
+    )
+    cap_qs = base_qs.filter(member_type='队长')
+    if not cap_qs.exists():
+        cap_qs = base_qs.filter(member_type_detail__contains='队长')
+
+    try:
+        return cap_qs.get()
+    except Exception:
+        return cap_qs.first()
+
+
+def _update_school_record(rec: dict, ach: TeamAchievement | None):
+    """
+    根据成绩更新学校汇总记录
+    """
+    if not ach:
+        return
+
+    # 预赛奖项
+    if ach.preliminary_award:
+        rec['award_count'] += 1
+        pre = ach.preliminary_award
+        if ('一等奖' in pre) or ('晋级' in pre):
+            rec['first_prize_count'] += 1
+        elif '二等奖' in pre:
+            rec['second_prize_count'] += 1
+        if '晋级' in pre:
+            rec['qualification_count'] += 1
+    else:
+        # 没有预赛奖项，算失败队伍
+        rec['no_award_team_count'] += 1
+
+    # 总决赛一等奖
+    final_one = (
+        (ach.final_technology and '一等奖' in ach.final_technology) or
+        (ach.final_business and '一等奖' in ach.final_business)
+    )
+    if final_one:
+        rec['final_first_prize_count'] += 1
+
+
+
+
+
+def _compute_stats(year: int, area: str) -> dict:
+    """真正的统计入口，只关心计算逻辑"""
+    teams, participants_map = _query_raw_data(year, area)
+    stats: dict[str, dict] = {}
 
     for team in teams:
-        # 找队长
-        cap_qs = TeamMember.objects.filter(
-            team_code=team.team_code,
-            create_year=str(year),
-            member_type='队长'
-        )
-        if not cap_qs.exists():
-            cap_qs = TeamMember.objects.filter(
-                team_code=team.team_code,
-                create_year=str(year),
-                member_type_detail__contains='队长'
-            )
-        try:
-            captain = cap_qs.get()
-        except:
-            captain = cap_qs.first() if cap_qs else None
+        # 1) 找队长获得学校
+        captain = _pick_captain(team, year)
         if not captain or not captain.school:
             continue
         sch = captain.school
 
-        # 初始化
+        # 2) 初始化学校记录
+        # 如果学校不存在，则初始化一个新记录
         if sch not in stats:
             stats[sch] = {
-                'participant_count': parts_map.get(sch, 0),
+                # 根据之前的查询结果，获取该学校的参赛人数
+                'participant_count': participants_map.get(sch, 0),
                 'team_count': 0,
                 'award_count': 0,
                 'first_prize_count': 0,
                 'second_prize_count': 0,
                 'qualification_count': 0,
                 'final_first_prize_count': 0,
+                'failed_count': 0,  # 失败队伍数量
             }
+        # 统计队伍数量，如果学校已存在，则增加队伍数量
         stats[sch]['team_count'] += 1
 
-        # 成绩
-        try:
-            ach = TeamAchievement.objects.get(team_code=team, year=str(year))
-        except:
-            ach = None
+        # 3) 更新成绩相关字段
+        # 选择指定年份和学校的 TeamAchievement
+        ach = TeamAchievement.objects.filter(
+            team_code=team, year=str(year)
+        ).first()
+        _update_school_record(stats[sch], ach)
 
-        if ach and ach.preliminary_award:
-            stats[sch]['award_count'] += 1
-            pre = ach.preliminary_award or ""
-            if '一等奖' in pre or '晋级' in pre:
-                stats[sch]['first_prize_count'] += 1
-            elif '二等奖' in pre:
-                stats[sch]['second_prize_count'] += 1
+    return stats
 
-        if ach and ach.preliminary_award and '晋级' in ach.preliminary_award:
-            stats[sch]['qualification_count'] += 1
 
-        if ach and (
-            (ach.final_technology and '一等奖' in ach.final_technology) or
-            (ach.final_business   and '一等奖' in ach.final_business)
-        ):
-            stats[sch]['final_first_prize_count'] += 1
-
-    # 3. 写回缓存表（批量 upsert）
+# ---------- 3. 写回缓存 ---------- #
+def _flush_cache(year: int, area: str, stats: dict):
+    """
+    全量覆盖式写回缓存：先删后插，保证一致性
+    :param year: 年份
+    :param area: 赛区名称
+    :param stats: 计算得到的学校统计数据
+    """
     objs = []
     now = timezone.now()
     for sch, data in stats.items():
-        objs.append(SchoolYearlyCache(
-            year=str(year),
-            area=area,
-            school=sch,
-            participant_count=data['participant_count'],
-            team_count=data['team_count'],
-            award_count=data['award_count'],
-            first_prize_count=data['first_prize_count'],
-            second_prize_count=data['second_prize_count'],
-            qualification_count=data['qualification_count'],
-            final_first_prize_count=data['final_first_prize_count'],
-            updated_at=now
-        ))
-    # 使用事务 + bulk_create(on_conflict) 或者 Django 4.1+ bulk_update_or_create
+        objs.append(
+            SchoolYearlyCache(
+                year=str(year),
+                area=area,
+                school=sch,
+                participant_count=data['participant_count'],
+                team_count=data['team_count'],
+                award_count=data['award_count'],
+                first_prize_count=data['first_prize_count'],
+                second_prize_count=data['second_prize_count'],
+                qualification_count=data['qualification_count'],
+                final_first_prize_count=data['final_first_prize_count'],
+                updated_at=now,
+            )
+        )
+
     with transaction.atomic():
-        # 先删掉旧的
         SchoolYearlyCache.objects.filter(year=str(year), area=area).delete()
-        # 再批量插
         SchoolYearlyCache.objects.bulk_create(objs)
 
-    # 4. 返回计算结果
-    return stats
 
+# ---------- 4. Facade：对外统一接口 ---------- #
+def get_school_yearly_stats(year: int, area: str) -> dict:
+    """
+    1) 命中缓存直接返回
+    2) 否则计算 → 写缓存 → 返回
+    :param year: 年份
+    :param area: 赛区名称
+    """
+    cached = _fetch_cached_stats(year, area)
+    if cached is not None:
+        return cached
+
+    stats = _compute_stats(year, area)
+    _flush_cache(year, area, stats)
+    return stats
 
 def get_school_yearly_stats_range(
     start_year: int,
@@ -264,6 +320,9 @@ def get_school_yearly_stats_range(
       …
     }
     每个内层字典的结构与 get_school_yearly_stats(year, area) 相同。
+    :param start_year: 起始年份
+    :param end_year: 结束年份
+    :param area: 赛区名称
     """
     results: dict[int, dict[str, dict[str, int]]] = {}
     for y in range(start_year, end_year + 1):

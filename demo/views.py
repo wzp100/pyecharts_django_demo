@@ -4,13 +4,9 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from demo.services.statistics import (
-    get_area_stats,
-    get_northwest_schools_stats,
     get_school_yearly_stats, get_school_yearly_stats_range
 )
 from demo.services.charts import render_area_detail_chart, render_area_range_chart
-from pyecharts import options as opts
-from pyecharts.charts import Bar, Page
 
 AREAS = [
       '东北赛区','上海赛区','西南赛区','华东赛区',
@@ -41,7 +37,7 @@ def range_year_report_all_area_view(request):
 
 
 
-def range_year_area_report_view(request,start_year: int, end_year: int, area: str):
+def range_year_area_report_view(request, start_year: int, end_year: int, area: str):
     """
     显示指定年份范围、地区的统计数据
     :param request:
@@ -50,8 +46,10 @@ def range_year_area_report_view(request,start_year: int, end_year: int, area: st
     :param area:
     :return:
     """
-    range_year_stats = get_school_yearly_stats_range(start_year, end_year, area);
-    page = render_area_range_chart(start_year, end_year, area, range_year_stats);
+    # 获取了一个总的统计数据
+    range_year_stats = get_school_yearly_stats_range(start_year, end_year, area)
+    # 都是放在同一个页面里面的
+    page = render_area_range_chart(start_year, end_year, area, range_year_stats)
     return HttpResponse(page.render_embed())
 
 

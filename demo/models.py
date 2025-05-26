@@ -96,17 +96,19 @@ class SchoolYearlyCache(models.Model):
     """
     缓存按 年+赛区+学校 汇总的统计数据
     """
-    year       = models.CharField(max_length=4)
-    area       = models.CharField(max_length=50)
-    school     = models.CharField(max_length=100)
-    participant_count      = models.IntegerField(default=0)
-    team_count             = models.IntegerField(default=0)
-    award_count            = models.IntegerField(default=0)
-    first_prize_count      = models.IntegerField(default=0)
-    second_prize_count     = models.IntegerField(default=0)
-    qualification_count    = models.IntegerField(default=0)
-    final_first_prize_count= models.IntegerField(default=0)
-    updated_at = models.DateTimeField(auto_now=True)
+    year       = models.CharField(max_length=4, db_comment='年份')
+    area       = models.CharField(max_length=50, db_comment='赛区')
+    school     = models.CharField(max_length=100, db_comment='学校名称')
+    participant_count      = models.IntegerField(default=0, db_comment='参赛人数')
+    team_count             = models.IntegerField(default=0, db_comment='参赛队伍数量')
+    award_count            = models.IntegerField(default=0, db_comment='获奖数量')
+    first_prize_count      = models.IntegerField(default=0, db_comment='一等奖数量')
+    second_prize_count     = models.IntegerField(default=0, db_comment='二等奖数量')
+    qualification_count    = models.IntegerField(default=0, db_comment='晋级决赛数量')
+    final_first_prize_count= models.IntegerField(default=0, db_comment='决赛一等奖数量')
+    no_award_team_count    = models.IntegerField(default=0, db_comment='失败的队伍数量')
+    updated_at = models.DateTimeField(auto_now=True, db_comment='最后更新时间')
+
 
     class Meta:
         unique_together = (("year", "area", "school"),)

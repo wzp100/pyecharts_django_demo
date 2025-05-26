@@ -23,6 +23,9 @@ def build_school_stats_table(
     {year}年分赛区二等奖获奖率 |
     {year}年晋级率 |
     {year}年决赛一等奖获奖率
+    :param year: 年份
+    :param area: 赛区
+    :param stats: 统计数据，格式为 {school: {team_count: int, award_count: int, ...}, ...}
     """
     headers = [
         "学校名称",
@@ -377,6 +380,10 @@ def render_area_range_chart(
     """
     生成【start_year–end_year 区间】【area 赛区】的五年队伍数多年度对比
     页面 HTML+JS（render_embed）。
+    :param start_year: 开始年份
+    :param end_year: 结束年份
+    :param area: 赛区名称
+    :param data_by_year: 多年度数据，格式为 {year: {school: {team_count: int, ...}, ...}, ...}
     """
     # 1. 拿到多年度数据
     years: List[int] = sorted(data_by_year.keys())
