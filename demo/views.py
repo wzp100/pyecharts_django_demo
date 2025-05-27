@@ -29,7 +29,7 @@ def navigation_view(request):
 
 def range_year_report_all_area_view(request):
     """
-    显示2019-2023年各赛区的统计数据
+    显示指定年所有赛区的统计数据
     :param request:
     :return:
     """

@@ -58,7 +58,7 @@ def get_area_detail_stats(year: int, area: str) -> dict:
             member_type='队长'
         )
         if not captain_qs.exists():
-            # 2) 回退到 member_type_detail 包含 “队长”
+            # 2) 回退到 member_type_detail 包含 "队长"
             captain_qs = TeamMember.objects.filter(
                 team_code=team.team_code,
                 create_year=str(year),
@@ -129,16 +129,7 @@ def _fetch_cached_stats(year: int, area: str) -> dict | None:
         return None
 
     return {
-        c.school: {
-            'participant_count': c.participant_count,
-            'team_count': c.team_count,
-            'award_count': c.award_count,
-            'first_prize_count': c.first_prize_count,
-            'second_prize_count': c.second_prize_count,
-            'qualification_count': c.qualification_count,
-            'final_first_prize_count': c.final_first_prize_count,
-            'no_award_team_count': c.no_award_team_count,
-        }
+        c.school: {field: getattr(c, field) for field in STAT_FIELDS}
         for c in qs
     }
 
@@ -205,7 +196,7 @@ def _update_school_record(rec: dict, ach: TeamAchievement | None):
         if '晋级' in pre:
             rec['qualification_count'] += 1
     else:
-        # 没有预赛奖项，算失败队伍
+        # 没有预赛奖项，算没有获奖的队伍
         rec['no_award_team_count'] += 1
 
     # 总决赛一等奖
@@ -235,17 +226,11 @@ def _compute_stats(year: int, area: str) -> dict:
         # 2) 初始化学校记录
         # 如果学校不存在，则初始化一个新记录
         if sch not in stats:
-            stats[sch] = {
-                # 根据之前的查询结果，获取该学校的参赛人数
-                'participant_count': participants_map.get(sch, 0),
-                'team_count': 0,
-                'award_count': 0,
-                'first_prize_count': 0,
-                'second_prize_count': 0,
-                'qualification_count': 0,
-                'final_first_prize_count': 0,
-                'failed_count': 0,  # 失败队伍数量
-            }
+            # 使用STAT_FIELDS创建初始化字典
+            stats[sch] = {field: 0 for field in STAT_FIELDS}
+            # 根据之前的查询结果，获取该学校的参赛人数
+            stats[sch]['participant_count'] = participants_map.get(sch, 0)
+
         # 统计队伍数量，如果学校已存在，则增加队伍数量
         stats[sch]['team_count'] += 1
 
@@ -270,21 +255,19 @@ def _flush_cache(year: int, area: str, stats: dict):
     objs = []
     now = timezone.now()
     for sch, data in stats.items():
-        objs.append(
-            SchoolYearlyCache(
-                year=str(year),
-                area=area,
-                school=sch,
-                participant_count=data['participant_count'],
-                team_count=data['team_count'],
-                award_count=data['award_count'],
-                first_prize_count=data['first_prize_count'],
-                second_prize_count=data['second_prize_count'],
-                qualification_count=data['qualification_count'],
-                final_first_prize_count=data['final_first_prize_count'],
-                updated_at=now,
-            )
-        )
+        # 创建基础对象参数
+        cache_data = {
+            'year': str(year),
+            'area': area,
+            'school': sch,
+            'updated_at': now,
+        }
+        
+        # 从STAT_FIELDS添加统计字段
+        for field in STAT_FIELDS:
+            cache_data[field] = data.get(field, 0)
+            
+        objs.append(SchoolYearlyCache(**cache_data))
 
     with transaction.atomic():
         SchoolYearlyCache.objects.filter(year=str(year), area=area).delete()
