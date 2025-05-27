@@ -6,6 +6,45 @@ from demo.models import (
 )
 from django.db.models import Count
 from django.db import transaction
+from typing import Dict, Any, List, Tuple
+
+# 通用工具函数
+def calculate_percentage(part: int, whole: int) -> str:
+    """计算百分比，并格式化为字符串"""
+    return f"{round(part / whole * 100, 2)}%" if whole else "0%"
+
+
+def extract_schools_from_data(
+    data_by_year: Dict[int, Dict[str, Dict[str, Any]]],
+    years: List[int],
+    sort_key_field: str = 'team_count',
+    reverse: bool = True
+) -> Tuple[List[str], Dict[str, int]]:
+    """
+    从多年度数据中提取学校列表并按指定字段排序
+    
+    :param data_by_year: 多年度数据
+    :param years: 年份列表
+    :param sort_key_field: 排序字段
+    :param reverse: 是否降序排列
+    :return: 学校列表和总和映射
+    """
+    # 提取所有学校
+    schools = list({
+        s for stats in data_by_year.values() for s in stats
+    })
+    
+    # 计算总和映射
+    total_map = {
+        s: sum(data_by_year[y].get(s, {}).get(sort_key_field, 0) for y in years)
+        for s in schools
+    }
+    
+    # 按总和排序
+    schools.sort(key=lambda s: total_map[s], reverse=reverse)
+    
+    return schools, total_map
+
 
 # 动态获取SchoolYearlyCache模型中的统计字段
 def get_stat_fields():
@@ -340,3 +379,207 @@ def get_school_yearly_stats_range(
         yearly = get_school_yearly_stats(y, area, use_cache=False)
         results[y] = yearly
     return results
+
+# ---------- 5. 图表数据准备 ---------- #
+
+def get_school_stats_data(year: int, area: str, use_cache: bool = True) -> Dict:
+    """
+    获取指定年份、赛区的学校统计数据，用于单年度图表展示
+    
+    :param year: 年份
+    :param area: 赛区名称
+    :param use_cache: 是否使用缓存
+    :return: 统计数据字典
+    """
+    # 获取学校统计数据
+    stats = get_area_full_stats(year, area, use_cache)
+    
+    # 按队伍数量排序学校列表
+    schools = list(stats.keys())
+    schools.sort(key=lambda s: stats[s]['team_count'], reverse=True)
+    
+    # 提取各项指标数据
+    team_counts = [stats[s]['team_count'] for s in schools]
+    participant_counts = [stats[s]['participant_count'] for s in schools]
+    
+    # 计算各类获奖数量和比率
+    award_counts = [stats[s]['award_count'] for s in schools]
+    first_prize_counts = [stats[s]['first_prize_count'] for s in schools]
+    second_prize_counts = [stats[s]['second_prize_count'] for s in schools]
+    qualification_counts = [stats[s]['qualification_count'] for s in schools]
+    final_first_prize_counts = [stats[s]['final_first_prize_count'] for s in schools]
+    no_award_counts = [stats[s].get('no_award_team_count', 0) for s in schools]
+    
+    # 计算各类比率
+    award_rates = []
+    first_prize_rates = []
+    second_prize_rates = []
+    qualification_rates = []
+    final_first_prize_rates = []
+    no_award_rates = []
+    
+    for i, school in enumerate(schools):
+        tc = team_counts[i]
+        if tc > 0:
+            award_rates.append(round(award_counts[i] / tc * 100, 2))
+            first_prize_rates.append(round(first_prize_counts[i] / tc * 100, 2))
+            second_prize_rates.append(round(second_prize_counts[i] / tc * 100, 2))
+            qualification_rates.append(round(qualification_counts[i] / tc * 100, 2))
+            final_first_prize_rates.append(round(final_first_prize_counts[i] / tc * 100, 2))
+            no_award_rates.append(round(no_award_counts[i] / tc * 100, 2))
+        else:
+            award_rates.append(0.0)
+            first_prize_rates.append(0.0)
+            second_prize_rates.append(0.0)
+            qualification_rates.append(0.0)
+            final_first_prize_rates.append(0.0)
+            no_award_rates.append(0.0)
+    
+    return {
+        'year': year,
+        'area': area,
+        'schools': schools,
+        'stats': stats,
+        'team_counts': team_counts,
+        'participant_counts': participant_counts,
+        'award_counts': award_counts,
+        'first_prize_counts': first_prize_counts,
+        'second_prize_counts': second_prize_counts,
+        'qualification_counts': qualification_counts,
+        'final_first_prize_counts': final_first_prize_counts,
+        'no_award_counts': no_award_counts,
+        'award_rates': award_rates,
+        'first_prize_rates': first_prize_rates,
+        'second_prize_rates': second_prize_rates,
+        'qualification_rates': qualification_rates,
+        'final_first_prize_rates': final_first_prize_rates,
+        'no_award_rates': no_award_rates
+    }
+
+def get_multi_year_stats_data(
+    start_year: int,
+    end_year: int,
+    area: str,
+    use_cache: bool = True
+) -> Dict:
+    """
+    获取多年度统计数据，用于多年度图表展示
+    
+    :param start_year: 起始年份
+    :param end_year: 结束年份
+    :param area: 赛区名称
+    :param use_cache: 是否使用缓存
+    :return: 多年度统计数据字典
+    """
+    # 获取多年度数据
+    data_by_year = get_school_yearly_stats_range(start_year, end_year, area, use_cache)
+    years = list(range(start_year, end_year + 1))
+    
+    # 获取所有学校
+    all_schools = set()
+    for year_data in data_by_year.values():
+        all_schools.update(year_data.keys())
+    all_schools = list(all_schools)
+    
+    # 计算各项指标的总和
+    total_team_count = {
+        s: sum(data_by_year[y].get(s, {}).get('team_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_participant_count = {
+        s: sum(data_by_year[y].get(s, {}).get('participant_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_award_count = {
+        s: sum(data_by_year[y].get(s, {}).get('award_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_first_prize = {
+        s: sum(data_by_year[y].get(s, {}).get('first_prize_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_second_prize = {
+        s: sum(data_by_year[y].get(s, {}).get('second_prize_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_qualification = {
+        s: sum(data_by_year[y].get(s, {}).get('qualification_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    total_final_first_prize = {
+        s: sum(data_by_year[y].get(s, {}).get('final_first_prize_count', 0) for y in years)
+        for s in all_schools
+    }
+    
+    # 计算平均获奖率
+    avg_award_rate = {
+        s: round(total_award_count[s] / total_team_count[s] * 100, 2) if total_team_count[s] else 0.0
+        for s in all_schools
+    }
+    
+    avg_first_prize_rate = {
+        s: round(total_first_prize[s] / total_team_count[s] * 100, 2) if total_team_count[s] else 0.0
+        for s in all_schools
+    }
+    
+    avg_second_prize_rate = {
+        s: round(total_second_prize[s] / total_team_count[s] * 100, 2) if total_team_count[s] else 0.0
+        for s in all_schools
+    }
+    
+    avg_qualification_rate = {
+        s: round(total_qualification[s] / total_team_count[s] * 100, 2) if total_team_count[s] else 0.0
+        for s in all_schools
+    }
+    
+    avg_final_first_prize_rate = {
+        s: round(total_final_first_prize[s] / total_team_count[s] * 100, 2) if total_team_count[s] else 0.0
+        for s in all_schools
+    }
+    
+    # 按队伍总数排序学校
+    schools_by_team_count = sorted(all_schools, key=lambda s: total_team_count[s], reverse=True)
+    
+    # 按一等奖总数排序学校
+    schools_by_first_prize = sorted(all_schools, key=lambda s: total_first_prize[s], reverse=True)
+    
+    # 按二等奖总数排序学校
+    schools_by_second_prize = sorted(all_schools, key=lambda s: total_second_prize[s], reverse=True)
+    
+    # 按晋级总数排序学校
+    schools_by_qualification = sorted(all_schools, key=lambda s: total_qualification[s], reverse=True)
+    
+    # 按决赛一等奖总数排序学校
+    schools_by_final_first_prize = sorted(all_schools, key=lambda s: total_final_first_prize[s], reverse=True)
+    
+    return {
+        'start_year': start_year,
+        'end_year': end_year,
+        'area': area,
+        'years': years,
+        'data_by_year': data_by_year,
+        'all_schools': all_schools,
+        'schools_by_team_count': schools_by_team_count,
+        'schools_by_first_prize': schools_by_first_prize,
+        'schools_by_second_prize': schools_by_second_prize,
+        'schools_by_qualification': schools_by_qualification,
+        'schools_by_final_first_prize': schools_by_final_first_prize,
+        'total_team_count': total_team_count,
+        'total_participant_count': total_participant_count,
+        'total_award_count': total_award_count,
+        'total_first_prize': total_first_prize,
+        'total_second_prize': total_second_prize,
+        'total_qualification': total_qualification,
+        'total_final_first_prize': total_final_first_prize,
+        'avg_award_rate': avg_award_rate,
+        'avg_first_prize_rate': avg_first_prize_rate,
+        'avg_second_prize_rate': avg_second_prize_rate,
+        'avg_qualification_rate': avg_qualification_rate,
+        'avg_final_first_prize_rate': avg_final_first_prize_rate
+    }

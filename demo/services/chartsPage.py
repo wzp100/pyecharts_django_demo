@@ -13,29 +13,70 @@ def get_range_year_area_report_page(
     start_year: int,
     end_year: int,
     area: str,
-    stats
+    stats_data=None,
+    use_cache: bool = True
 ) -> str:
     """
     在 Django view 里调用，直接返回可嵌入的 HTML+JS。
+    
+    :param start_year: 起始年份
+    :param end_year: 结束年份
+    :param area: 赛区名称
+    :param stats_data: 预先计算的统计数据，如果为None则自动计算
+    :param use_cache: 是否使用缓存（当stats_data为None时有效）
+    :return: 可嵌入的HTML+JS代码
     """
+    from demo.services.statistics import get_multi_year_stats_data
+    
+    # 如果没有提供stats_data，则自动计算
+    if stats_data is None:
+        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
+        data_by_year = stats_data['data_by_year']
+    else:
+        data_by_year = stats_data
+        
     page = Page(layout=Page.SimplePageLayout)
     page.add(
-        build_range_year_report_first_prize_bar(start_year, end_year, area, stats),
-        build_range_year_report_first_prize_table(start_year, end_year, area, stats)
+        build_range_year_report_first_prize_bar(start_year, end_year, area, data_by_year),
+        build_range_year_report_first_prize_table(start_year, end_year, area, data_by_year)
     )
     return page.render_embed()
 
 
 
-def get_area_detail_page(year: int, area: str, stats: Dict[str, Dict[str, Any]]) -> str:
+def get_area_detail_page(
+    year: int,
+    area: str,
+    stats_data=None,
+    use_cache: bool = True
+) -> str:
     """
-    将柱状图和带“赛区”列的表格放到同一个 Page，返回 render_embed() 的片段。
+    将柱状图和带"赛区"列的表格放到同一个 Page，返回 render_embed() 的片段。
+    
+    :param year: 年份
+    :param area: 赛区名称
+    :param stats_data: 预先计算的统计数据，如果为None则自动计算，
+                     可以是get_school_stats_data返回的完整统计数据，
+                     也可以是原始统计数据格式 {school: {team_count: int, ...}, ...}
+    :param use_cache: 是否使用缓存（当stats_data为None时有效）
+    :return: 可嵌入的HTML+JS代码
     """
+    from demo.services.statistics import get_school_stats_data, get_area_full_stats
+    
+    # 如果没有提供stats_data，则自动计算
+    if stats_data is None:
+        # 先尝试使用新的get_school_stats_data函数
+        try:
+            stats_data = get_school_stats_data(year, area, use_cache)
+        except:
+            # 如果失败，回退到使用get_area_full_stats函数
+            stats_data = get_area_full_stats(year, area, use_cache)
+        
     page = Page(layout=Page.SimplePageLayout)
     page.add(
-        build_school_stats_table(year, area, stats),
-        build_area_detail_bar(year, area, stats),
-        build_area_participant_count_bar(year, area, stats)
+        build_school_stats_table(year, area, stats_data),
+        build_area_detail_bar(year, area, stats_data),
+        build_area_participant_count_bar(year, area, stats_data)
     )
     return page.render_embed()
 
@@ -45,32 +86,53 @@ def render_area_range_chart(
     start_year: int,
     end_year: int,
     area: str,
-    data_by_year
+    stats_data=None,
+    use_cache: bool = True
 ) -> Page:
     """
     生成【start_year–end_year 区间】【area 赛区】的五年队伍数多年度对比
     页面 HTML+JS（render_embed）。
+    
+    :param start_year: 开始年份
+    :param end_year: 结束年份
+    :param area: 赛区名称
+    :param stats_data: 预先计算的统计数据，如果为None则自动计算，
+                     可以是get_multi_year_stats_data返回的完整统计数据，
+                     也可以是原始的data_by_year格式数据
+    :param use_cache: 是否使用缓存（当stats_data为None时有效）
+    :return: Page对象
     """
-    # 1. 拿到多年度数据
-    # data_by_year: Dict[int, Dict[str, Dict[str, int]]] = (
-    #     get_school_yearly_stats_range(start_year, end_year, area)
-    # )
-    years: List[int] = sorted(data_by_year.keys())
-
-    # 2. 汇总所有学校并按五年总和降序
-    schools = list({
-        s for stats in data_by_year.values() for s in stats
-    })
-    total_map = {
-        s: sum(data_by_year[y].get(s, {}).get('team_count', 0) for y in years)
-        for s in schools
-    }
-    schools.sort(key=lambda s: total_map[s], reverse=True)
-
+    from demo.services.statistics import get_multi_year_stats_data
+    
+    # 如果没有提供stats_data，则自动计算
+    if stats_data is None:
+        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
+    
     # 3. 枚举年度柱状图
     bar = Bar(
         init_opts=opts.InitOpts(width='100%', height='600px')
     )
+    
+    # 兼容直接传入data_by_year的情况
+    if 'years' not in stats_data and 'data_by_year' not in stats_data:
+        # 直接传入的是data_by_year
+        data_by_year = stats_data
+        years = sorted(data_by_year.keys())
+        
+        # 提取学校并按参赛队伍数排序
+        from demo.services.statistics import extract_schools_from_data
+        schools, total_map = extract_schools_from_data(
+            data_by_year, 
+            years, 
+            sort_key_field='team_count'
+        )
+    else:
+        # 传入的是完整的统计数据
+        years = stats_data['years']
+        schools = stats_data['schools_by_team_count']
+        data_by_year = stats_data['data_by_year']
+        total_map = stats_data['total_team_count']
+    
     bar.add_xaxis(schools)
     for y in years:
         bar.add_yaxis(
