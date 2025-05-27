@@ -107,6 +107,12 @@ class SchoolYearlyCache(models.Model):
     qualification_count    = models.IntegerField(default=0, db_comment='晋级决赛数量')
     final_first_prize_count= models.IntegerField(default=0, db_comment='决赛一等奖数量')
     no_award_team_count    = models.IntegerField(default=0, db_comment='失败的队伍数量')
+    no_award_rate          = models.FloatField(default=0.0, db_comment='未获奖率')
+    award_rate = models.FloatField(default=0.0, db_comment='获奖率')
+    first_prize_rate = models.FloatField(default=0.0, db_comment='一等奖率')
+    second_prize_rate = models.FloatField(default=0.0, db_comment='二等奖率')
+    qualification_rate = models.FloatField(default=0.0, db_comment='晋级决赛率')
+    final_first_prize_rate = models.FloatField(default=0.0, db_comment='决赛一等奖率')
     updated_at = models.DateTimeField(auto_now=True, db_comment='最后更新时间')
 
 

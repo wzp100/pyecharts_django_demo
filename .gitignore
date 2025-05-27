@@ -15,6 +15,7 @@ staticfiles/
 local_settings.py
 .env
 .env.*
+demo/migrations
 
 # Jupyter Notebooks
 .ipynb_checkpoints

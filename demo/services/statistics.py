@@ -7,16 +7,21 @@ from demo.models import (
 from django.db.models import Count
 from django.db import transaction
 
-STAT_FIELDS: list[str] = [
-    'participant_count',
-    'team_count',
-    'award_count',
-    'first_prize_count',
-    'second_prize_count',
-    'qualification_count',
-    'final_first_prize_count',
-    'no_award_team_count',      # ← 新增字段示例
-]
+# 动态获取SchoolYearlyCache模型中的统计字段
+def get_stat_fields():
+    """获取SchoolYearlyCache模型中的统计字段列表，排除非统计相关字段"""
+    # 排除这些字段，它们不是统计数据字段
+    exclude_fields = {'id', 'year', 'area', 'school', 'updated_at'}
+    
+    # 获取模型的所有字段名
+    all_fields = [field.name for field in SchoolYearlyCache._meta.get_fields()]
+    
+    # 过滤出统计字段
+    stat_fields = [field for field in all_fields if field not in exclude_fields]
+    return stat_fields
+
+# 获取统计字段列表
+STAT_FIELDS = get_stat_fields()
 
 
 # TODO: 要补全的函数
@@ -89,7 +94,7 @@ def get_area_detail_stats(year: int, area: str) -> dict:
     )
     return sorted_stats
 
-def get_area_full_stats(year: int, area: str) -> dict:
+def get_area_full_stats(year: int, area: str, use_cache: bool = True) -> dict:
     """
     返回一个 school_stats：
     {
@@ -103,12 +108,15 @@ def get_area_full_stats(year: int, area: str) -> dict:
       }, …
     }
     其中仅保留属于指定 area 的学校。
+    :param year: 年份
+    :param area: 赛区名称
+    :param use_cache: 是否使用缓存，默认为True
     """
     # 1) 从 area_detail_stats 拿到本区每校的 team_count
     area_team_counts = get_area_detail_stats(year, area)
 
-    # 2) 拿到所有学校年度统计
-    all_stats = get_school_yearly_stats(year, area)
+    # 2) 拿到所有学校年度统计，传递use_cache参数
+    all_stats = get_school_yearly_stats(year, area, use_cache=use_cache)
 
     # 3) 只保留本区学校，并把 team_count 覆盖到 school_stats 里
     school_stats = {}
@@ -212,7 +220,9 @@ def _update_school_record(rec: dict, ach: TeamAchievement | None):
 
 
 def _compute_stats(year: int, area: str) -> dict:
-    """真正的统计入口，只关心计算逻辑"""
+    """
+    真正的统计入口，只关心计算逻辑
+    """
     teams, participants_map = _query_raw_data(year, area)
     stats: dict[str, dict] = {}
 
@@ -241,6 +251,17 @@ def _compute_stats(year: int, area: str) -> dict:
         ).first()
         _update_school_record(stats[sch], ach)
 
+    # 计算一下每个学校的未获奖率
+    # 遍历学校，获取未获奖数以及参赛队伍数
+    for sch, data in stats.items():
+        no_award_count = data['no_award_team_count']
+        team_count = data['team_count']
+        if team_count > 0:
+            no_award_rate = no_award_count / team_count
+        else:
+            no_award_rate = 0.0
+        data['no_award_rate'] = no_award_rate
+        print(no_award_rate)
     return stats
 
 
@@ -275,25 +296,30 @@ def _flush_cache(year: int, area: str, stats: dict):
 
 
 # ---------- 4. Facade：对外统一接口 ---------- #
-def get_school_yearly_stats(year: int, area: str) -> dict:
+def get_school_yearly_stats(year: int, area: str, use_cache: bool = True) -> dict:
     """
-    1) 命中缓存直接返回
+    1) 命中缓存直接返回（如果use_cache=True）
     2) 否则计算 → 写缓存 → 返回
     :param year: 年份
     :param area: 赛区名称
+    :param use_cache: 是否使用缓存，默认为True。设置为False时将跳过缓存直接计算
     """
-    cached = _fetch_cached_stats(year, area)
-    if cached is not None:
-        return cached
+    if use_cache:
+        cached = _fetch_cached_stats(year, area)
+        if cached is not None:
+            return cached
 
     stats = _compute_stats(year, area)
+    
+    # 即使不使用缓存读取，也要更新缓存
     _flush_cache(year, area, stats)
     return stats
 
 def get_school_yearly_stats_range(
     start_year: int,
     end_year: int,
-    area: str
+    area: str,
+    use_cache: bool = True
 ) -> dict[int, dict[str, dict[str, int]]]:
     """
     返回指定赛区在 [start_year, end_year] 区间内，各年份的学校统计数据：
@@ -306,10 +332,11 @@ def get_school_yearly_stats_range(
     :param start_year: 起始年份
     :param end_year: 结束年份
     :param area: 赛区名称
+    :param use_cache: 是否使用缓存，默认为True
     """
     results: dict[int, dict[str, dict[str, int]]] = {}
     for y in range(start_year, end_year + 1):
-        # 复用单年函数
-        yearly = get_school_yearly_stats(y, area)
+        # 复用单年函数，传递use_cache参数
+        yearly = get_school_yearly_stats(y, area, use_cache=False)
         results[y] = yearly
     return results
