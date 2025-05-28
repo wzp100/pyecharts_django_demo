@@ -1,9 +1,9 @@
 # demo/services/charts.py
 from typing import Dict, Any, List, Union, Optional, Tuple
 from pyecharts import options as opts
-from pyecharts.charts import Bar, Page, Line
+from pyecharts.charts import Bar, Page, Line,  Grid
 from pyecharts.components import Table
-from pyecharts.options import ComponentTitleOpts, LabelOpts, AxisOpts
+from pyecharts.options import ComponentTitleOpts, LabelOpts, AxisOpts, ToolboxOpts
 
 
 # 通用工具函数
@@ -49,10 +49,8 @@ def create_generic_bar(
     y_data_list: List[List[Any]],
     y_names: List[str],
     title: str,
-    init_opts: Optional[opts.InitOpts] = None,
-    label_show: bool = True,
+   label_show: bool = True,
     rotate_labels: int = 45,
-    datazoom: bool = True
 ) -> Bar:
     """
     创建通用柱状图
@@ -64,28 +62,42 @@ def create_generic_bar(
     :param init_opts: 初始化选项
     :param label_show: 是否显示标签
     :param rotate_labels: X轴标签旋转角度
-    :param datazoom: 是否启用数据缩放
     :return: 柱状图对象
     """
-    bar = Bar(init_opts=init_opts) if init_opts else Bar()
+    bar = Bar(
+        init_opts= opts.InitOpts(
+            width="100%",
+            height="800px"
+        ),
+    )
+
     bar.add_xaxis(x_data)
-    
+
     for i, y_data in enumerate(y_data_list):
         bar.add_yaxis(
             y_names[i],
             y_data,
             label_opts=opts.LabelOpts(is_show=label_show)
         )
-    
-    global_opts = {
-        "title_opts": opts.TitleOpts(title=title),
-        "xaxis_opts": opts.AxisOpts(axislabel_opts=opts.LabelOpts(rotate=rotate_labels)),
-    }
-    
-    if datazoom:
-        global_opts["datazoom_opts"] = [opts.DataZoomOpts()]
-    
-    bar.set_global_opts(**global_opts)
+
+    bar.set_global_opts(
+
+        title_opts = opts.TitleOpts(title=title),
+        xaxis_opts = opts.AxisOpts(axislabel_opts=opts.LabelOpts(rotate=rotate_labels)),
+        datazoom_opts = opts.DataZoomOpts(
+            pos_bottom = "20",
+        ),
+        toolbox_opts= opts.ToolboxOpts(),
+    )
+    bar = (
+        Grid(init_opts=opts.InitOpts(width="100%"))
+        .add(
+            bar,
+            grid_opts=opts.GridOpts(
+                pos_bottom="25%"
+            )
+        )
+    )
     return bar
 
 
@@ -607,8 +619,12 @@ def build_range_year_area_report_participant_count_bar(
         ),
         xaxis_opts=AxisOpts(axislabel_opts=LabelOpts(rotate=45)),
         tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="shadow"),
-        legend_opts=opts.LegendOpts(pos_top="10%")
+        legend_opts=opts.LegendOpts(pos_top="10%"),
+        toolbox_opts=opts.ToolboxOpts(),
+        datazoom_opts=opts.DataZoomOpts()
+
     )
+
     return bar
 
 # 显示指定年份范围、赛区的各年参赛队伍数统计表

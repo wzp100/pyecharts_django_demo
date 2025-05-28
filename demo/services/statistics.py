@@ -290,17 +290,42 @@ def _compute_stats(year: int, area: str) -> dict:
         ).first()
         _update_school_record(stats[sch], ach)
 
-    # 计算一下每个学校的未获奖率
-    # 遍历学校，获取未获奖数以及参赛队伍数
+    # 计算各种比率
     for sch, data in stats.items():
-        no_award_count = data['no_award_team_count']
         team_count = data['team_count']
         if team_count > 0:
-            no_award_rate = no_award_count / team_count
+            # 未获奖率
+            no_award_count = data['no_award_team_count']
+            data['no_award_rate'] = no_award_count / team_count
+            
+            # 获奖率
+            award_count = data['award_count']
+            data['award_rate'] = award_count / team_count
+            
+            # 一等奖率
+            first_prize_count = data['first_prize_count']
+            data['first_prize_rate'] = first_prize_count / team_count
+            
+            # 二等奖率
+            second_prize_count = data['second_prize_count']
+            data['second_prize_rate'] = second_prize_count / team_count
+            
+            # 晋级决赛率
+            qualification_count = data['qualification_count']
+            data['qualification_rate'] = qualification_count / team_count
+            
+            # 决赛一等奖率
+            final_first_prize_count = data['final_first_prize_count']
+            data['final_first_prize_rate'] = final_first_prize_count / team_count
         else:
-            no_award_rate = 0.0
-        data['no_award_rate'] = no_award_rate
-        print(no_award_rate)
+            # 如果没有参赛队伍，所有比率设为0
+            data['no_award_rate'] = 0.0
+            data['award_rate'] = 0.0
+            data['first_prize_rate'] = 0.0
+            data['second_prize_rate'] = 0.0
+            data['qualification_rate'] = 0.0
+            data['final_first_prize_rate'] = 0.0
+    
     return stats
 
 
@@ -402,7 +427,7 @@ def get_school_stats_data(year: int, area: str, use_cache: bool = True) -> Dict:
     team_counts = [stats[s]['team_count'] for s in schools]
     participant_counts = [stats[s]['participant_count'] for s in schools]
     
-    # 计算各类获奖数量和比率
+    # 提取各类获奖数量
     award_counts = [stats[s]['award_count'] for s in schools]
     first_prize_counts = [stats[s]['first_prize_count'] for s in schools]
     second_prize_counts = [stats[s]['second_prize_count'] for s in schools]
@@ -410,30 +435,13 @@ def get_school_stats_data(year: int, area: str, use_cache: bool = True) -> Dict:
     final_first_prize_counts = [stats[s]['final_first_prize_count'] for s in schools]
     no_award_counts = [stats[s].get('no_award_team_count', 0) for s in schools]
     
-    # 计算各类比率
-    award_rates = []
-    first_prize_rates = []
-    second_prize_rates = []
-    qualification_rates = []
-    final_first_prize_rates = []
-    no_award_rates = []
-    
-    for i, school in enumerate(schools):
-        tc = team_counts[i]
-        if tc > 0:
-            award_rates.append(round(award_counts[i] / tc * 100, 2))
-            first_prize_rates.append(round(first_prize_counts[i] / tc * 100, 2))
-            second_prize_rates.append(round(second_prize_counts[i] / tc * 100, 2))
-            qualification_rates.append(round(qualification_counts[i] / tc * 100, 2))
-            final_first_prize_rates.append(round(final_first_prize_counts[i] / tc * 100, 2))
-            no_award_rates.append(round(no_award_counts[i] / tc * 100, 2))
-        else:
-            award_rates.append(0.0)
-            first_prize_rates.append(0.0)
-            second_prize_rates.append(0.0)
-            qualification_rates.append(0.0)
-            final_first_prize_rates.append(0.0)
-            no_award_rates.append(0.0)
+    # 提取已计算好的各类比率，转换为百分比格式
+    award_rates = [round(stats[s]['award_rate'] * 100, 2) for s in schools]
+    first_prize_rates = [round(stats[s]['first_prize_rate'] * 100, 2) for s in schools]
+    second_prize_rates = [round(stats[s]['second_prize_rate'] * 100, 2) for s in schools]
+    qualification_rates = [round(stats[s]['qualification_rate'] * 100, 2) for s in schools]
+    final_first_prize_rates = [round(stats[s]['final_first_prize_rate'] * 100, 2) for s in schools]
+    no_award_rates = [round(stats[s]['no_award_rate'] * 100, 2) for s in schools]
     
     return {
         'year': year,
