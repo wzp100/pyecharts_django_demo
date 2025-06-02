@@ -1,11 +1,11 @@
 # demo/services/charts.py
-from typing import Dict, Any, List
+# from typing import Dict, Any, List
 from pyecharts import options as opts
 from pyecharts.charts import Bar, Page, Line
 from pyecharts.components import Table
 from pyecharts.options import ComponentTitleOpts, LabelOpts, AxisOpts
 
-from demo.services.charts import build_area_detail_bar, build_area_participant_count_bar, build_school_stats_table, \
+from demo.services.charts import build_area_team_count_bar, build_area_participant_count_bar, build_school_stats_table, \
     build_range_year_report_first_prize_bar, build_range_year_report_first_prize_table
 
 
@@ -26,19 +26,19 @@ def get_range_year_area_report_page(
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     :return: 可嵌入的HTML+JS代码
     """
-    from demo.services.statistics import get_multi_year_stats_data
-    
+    # from demo.services.statistics import get_multi_year_stats_data
+    #
     # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
-        data_by_year = stats_data['data_by_year']
-    else:
-        data_by_year = stats_data
-        
+    # if stats_data is None:
+    #     stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
+    #     data_by_year = stats_data['data_by_year']
+    # else:
+    #     data_by_year = stats_data
+    #
     page = Page(layout=Page.SimplePageLayout)
     page.add(
-        build_range_year_report_first_prize_bar(start_year, end_year, area, data_by_year),
-        build_range_year_report_first_prize_table(start_year, end_year, area, data_by_year)
+        build_range_year_report_first_prize_bar(start_year, end_year, area, stats_data),
+        build_range_year_report_first_prize_table(start_year, end_year, area, stats_data)
     )
     return page.render_embed()
 
@@ -61,21 +61,21 @@ def get_area_detail_page(
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     :return: 可嵌入的HTML+JS代码
     """
-    from demo.services.statistics import get_school_stats_data, get_area_full_stats
-    
-    # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        # 先尝试使用新的get_school_stats_data函数
-        try:
-            stats_data = get_school_stats_data(year, area, use_cache)
-        except:
-            # 如果失败，回退到使用get_area_full_stats函数
-            stats_data = get_area_full_stats(year, area, use_cache)
+    # from demo.services.statistics import get_school_stats_data, get_area_full_stats
+    #
+    # # 如果没有提供stats_data，则自动计算
+    # if stats_data is None:
+    #     # 先尝试使用新的get_school_stats_data函数
+    #     try:
+    #         stats_data = get_school_stats_data(year, area, use_cache)
+    #     except:
+    #         # 如果失败，回退到使用get_area_full_stats函数
+    #         stats_data = get_area_full_stats(year, area, use_cache)
         
     page = Page(layout=Page.SimplePageLayout)
     page.add(
         build_school_stats_table(year, area, stats_data),
-        build_area_detail_bar(year, area, stats_data),
+        build_area_team_count_bar( year , area , stats_data ),
         build_area_participant_count_bar(year, area, stats_data)
     )
     return page.render_embed()
@@ -102,11 +102,11 @@ def render_area_range_chart(
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     :return: Page对象
     """
-    from demo.services.statistics import get_multi_year_stats_data
-    
-    # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
+    # from demo.services.statistics import get_multi_year_stats_data
+    #
+    # # 如果没有提供stats_data，则自动计算
+    # if stats_data is None:
+    #     stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
     
     # 3. 枚举年度柱状图
     bar = Bar(

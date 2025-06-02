@@ -104,6 +104,7 @@ class SchoolYearlyCache(models.Model):
     award_count            = models.IntegerField(default=0, db_comment='获奖数量')
     first_prize_count      = models.IntegerField(default=0, db_comment='一等奖数量')
     second_prize_count     = models.IntegerField(default=0, db_comment='二等奖数量')
+    third_prize_count = models.IntegerField(default=0, db_comment='三等奖数量')
     qualification_count    = models.IntegerField(default=0, db_comment='晋级决赛数量')
     final_first_prize_count= models.IntegerField(default=0, db_comment='决赛一等奖数量')
     no_award_team_count    = models.IntegerField(default=0, db_comment='失败的队伍数量')

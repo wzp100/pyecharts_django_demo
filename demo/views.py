@@ -61,9 +61,7 @@ def area_detail_view(request, year: int, area: str):
     """
     if area not in AREAS:
         return HttpResponse(f"<h1>{year}年{area}不存在</h1>")
-
-    # stats = get_area_detail_stats(year, area)
-    stats = get_school_yearly_stats(year, area)
+    stats = get_school_yearly_stats(year, area, False)
     if not stats:
         return HttpResponse(f"<h1>{year}年{area}暂无数据</h1>")
 

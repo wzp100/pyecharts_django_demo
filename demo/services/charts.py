@@ -6,42 +6,48 @@ from pyecharts.components import Table
 from pyecharts.options import ComponentTitleOpts, LabelOpts, AxisOpts, ToolboxOpts
 
 
-# 通用工具函数
-def calculate_percentage(part: int, whole: int) -> str:
-    """计算百分比，并格式化为字符串"""
-    return f"{round(part / whole * 100, 2)}%" if whole else "0%"
-
-
-def extract_schools_from_data(
-    data_by_year: Dict[int, Dict[str, Dict[str, Any]]],
-    years: List[int],
-    sort_key_field: str = 'team_count',
-    reverse: bool = True
-) -> Tuple[List[str], Dict[str, int]]:
+# # 通用工具函数
+def format_percentage(number, ndigits:int = 2) -> str:
     """
-    从多年度数据中提取学校列表并按指定字段排序
-    
-    :param data_by_year: 多年度数据
-    :param years: 年份列表
-    :param sort_key_field: 排序字段
-    :param reverse: 是否降序排列
-    :return: 学校列表和总和映射
+    格式化为字符串形式的带百分号的百分数
     """
-    # 提取所有学校
-    schools = list({
-        s for stats in data_by_year.values() for s in stats
-    })
-    
-    # 计算总和映射
-    total_map = {
-        s: sum(data_by_year[y].get(s, {}).get(sort_key_field, 0) for y in years)
-        for s in schools
-    }
-    
-    # 按总和排序
-    schools.sort(key=lambda s: total_map[s], reverse=reverse)
-    
-    return schools, total_map
+    if number:
+        return f"{round ( number * 100 , ndigits )}%"
+    else:
+        return "0%"
+
+#
+#
+# def extract_schools_from_data(
+#     data_by_year: Dict[int, Dict[str, Dict[str, Any]]],
+#     years: List[int],
+#     sort_key_field: str = 'team_count',
+#     reverse: bool = True
+# ) -> Tuple[List[str], Dict[str, int]]:
+#     """
+#     从多年度数据中提取学校列表并按指定字段排序
+#
+#     :param data_by_year: 多年度数据
+#     :param years: 年份列表
+#     :param sort_key_field: 排序字段
+#     :param reverse: 是否降序排列
+#     :return: 学校列表和总和映射
+#     """
+#     # 提取所有学校
+#     schools = list({
+#         s for stats in data_by_year.values() for s in stats
+#     })
+#
+#     # 计算总和映射
+#     total_map = {
+#         s: sum(data_by_year[y].get(s, {}).get(sort_key_field, 0) for y in years)
+#         for s in schools
+#     }
+#
+#     # 按总和排序
+#     schools.sort(key=lambda s: total_map[s], reverse=reverse)
+#
+#     return schools, total_map
 
 
 def create_generic_bar(
@@ -147,7 +153,7 @@ def create_page_and_render(
 def build_school_stats_table(
         year: int,
         area: str,
-        stats_data: Dict
+        stats_data: List
 ) -> Table:
     """
     生成xx年xx赛区各个学校统计表格，包含各校的参赛队伍数、获奖率等信息。
@@ -166,6 +172,8 @@ def build_school_stats_table(
     :param stats_data: 统计数据，可以是从statistics.py的get_school_stats_data获取的完整数据，
                      也可以是原始统计数据格式 {school: {team_count: int, ...}, ...}
     """
+
+    # TODO: 后面改为model里面的注释
     headers = [
         "学校名称",
         "赛区",
@@ -180,66 +188,29 @@ def build_school_stats_table(
     ]
 
     # 兼容直接传入原始统计数据的情况
-    if 'schools' not in stats_data:
-        # 原始统计数据
-        schools = list(stats_data.keys())
-        schools.sort(key=lambda s: stats_data[s]['team_count'], reverse=True)
-        
-        rows = []
-        for school in schools:
-            data = stats_data[school]
-            tc = data.get('team_count', 0)
-            ac = data.get('award_count', 0)
-            fp = data.get('first_prize_count', 0)
-            sp = data.get('second_prize_count', 0)
-            qc = data.get('qualification_count', 0)
-            ff = data.get('final_first_prize_count', 0)
-            
-            # 计算比率
-            award_rate = round(ac / tc * 100, 2) if tc else 0.0
-            first_prize_rate = round(fp / tc * 100, 2) if tc else 0.0
-            second_prize_rate = round(sp / tc * 100, 2) if tc else 0.0
-            qualification_rate = round(qc / tc * 100, 2) if tc else 0.0
-            final_first_prize_rate = round(ff / tc * 100, 2) if tc else 0.0
-            
-            rows.append([
-                school,
-                area,
-                tc,
-                f"{award_rate}%",
-                fp,
-                f"{first_prize_rate}%",
-                sp,
-                f"{second_prize_rate}%",
-                f"{qualification_rate}%",
-                f"{final_first_prize_rate}%",
-            ])
-    else:
-        # 完整统计数据
-        schools = stats_data['schools']
-        team_counts = stats_data['team_counts']
-        award_rates = stats_data['award_rates']
-        first_prize_counts = stats_data['first_prize_counts']
-        first_prize_rates = stats_data['first_prize_rates']
-        second_prize_counts = stats_data['second_prize_counts']
-        second_prize_rates = stats_data['second_prize_rates']
-        qualification_rates = stats_data['qualification_rates']
-        final_first_prize_rates = stats_data['final_first_prize_rates']
+    # if 'schools' not in stats_data:
 
-        rows = []
-        for i, school in enumerate(schools):
-            rows.append([
-                school,
-                area,
-                team_counts[i],
-                f"{award_rates[i]}%",
-                first_prize_counts[i],
-                f"{first_prize_rates[i]}%",
-                second_prize_counts[i],
-                f"{second_prize_rates[i]}%",
-                f"{qualification_rates[i]}%",
-                f"{final_first_prize_rates[i]}%",
-            ])
+    # 原始统计数据
+    # 排序
+    stats_data.sort(
+        key=lambda item: item['team_count'],
+        reverse=True
+    )
+    # schools = [ item['school'] for item in stats_data]
+    rows = []
+    for item in stats_data:
+        rows.append([
+            item['school'],
+            area,
+            item['team_count'],
+            item['award_count'],
+            item['first_prize_count'] ,
+            format_percentage(item['first_prize_rate']),
+            item['second_prize_count'] ,
+            format_percentage ( item['second_prize_rate'] ) ,
+            format_percentage ( item['qualification_rate'] ) ,
+            format_percentage ( item['final_first_prize_rate'] ) ,
+        ])
 
     return create_generic_table(
         headers, 
@@ -248,7 +219,7 @@ def build_school_stats_table(
     )
 
 
-def build_area_detail_bar(year: int, area: str, stats_data: Dict) -> Bar:
+def build_area_team_count_bar(year: int , area: str , stats_data: List) -> Bar:
     """
     构造柱状图，显示各学校的参赛队伍数。
     :param year: 年份
@@ -257,17 +228,13 @@ def build_area_detail_bar(year: int, area: str, stats_data: Dict) -> Bar:
                      也可以是原始统计数据格式 {school: {team_count: int, ...}, ...}
     :return: 柱状图
     """
-    # 兼容直接传入原始统计数据的情况
-    if 'schools' not in stats_data:
-        # 原始统计数据
-        schools = list(stats_data.keys())
-        schools.sort(key=lambda s: stats_data[s]['team_count'], reverse=True)
-        team_counts = [stats_data[s]['team_count'] for s in schools]
-    else:
-        # 完整统计数据
-        schools = stats_data['schools']
-        team_counts = stats_data['team_counts']
-
+    sorted_stats_data = sorted(
+        stats_data,
+        key = lambda item: item['team_count'],
+        reverse = True
+    )
+    schools = [ item ['school'] for  item in sorted_stats_data]
+    team_counts = [ item ['team_count'] for  item in sorted_stats_data ]
     return create_generic_bar(
         x_data=schools,
         y_data_list=[team_counts],
@@ -275,7 +242,7 @@ def build_area_detail_bar(year: int, area: str, stats_data: Dict) -> Bar:
         title=f"{year}年{area}各学校参赛队伍数"
     )
 
-def build_area_participant_count_bar(year: int, area: str, stats_data: Dict) -> Bar:
+def build_area_participant_count_bar(year: int, area: str, stats_data: List) -> Bar:
     """
     构造柱状图，显示各学校的参赛人员数。
     :param year: 年份
@@ -284,17 +251,13 @@ def build_area_participant_count_bar(year: int, area: str, stats_data: Dict) -> 
                      也可以是原始统计数据格式 {school: {participant_count: int, ...}, ...}
     :return: 柱状图
     """
-    # 兼容直接传入原始统计数据的情况
-    if 'schools' not in stats_data:
-        # 原始统计数据
-        schools = list(stats_data.keys())
-        schools.sort(key=lambda s: stats_data[s]['team_count'], reverse=True)
-        participant_counts = [stats_data[s].get('participant_count', 0) for s in schools]
-    else:
-        # 完整统计数据
-        schools = stats_data['schools']
-        participant_counts = stats_data['participant_counts']
 
+    stats_data.sort(
+        key = lambda item:item['participant_count'],
+        reverse = True
+    )
+    schools = [ item['school'] for item in stats_data]
+    participant_counts = [ item['participant_count'] for item in stats_data]
     return create_generic_bar(
         x_data=schools,
         y_data_list=[participant_counts],
@@ -315,22 +278,13 @@ def render_area_detail_chart(year: int, area: str, stats_data=None, use_cache: b
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     :return: 可嵌入的HTML+JS代码
     """
-    from demo.services.statistics import get_school_stats_data, get_area_full_stats
-    
-    # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        # 先尝试使用新的get_school_stats_data函数
-        try:
-            stats_data = get_school_stats_data(year, area, use_cache)
-        except:
-            # 如果失败，回退到使用get_area_full_stats函数
-            stats_data = get_area_full_stats(year, area, use_cache)
-        
-    bar = build_area_detail_bar(year, area, stats_data)
-    participant_count_bar = build_area_participant_count_bar(year, area, stats_data)
-    table = build_school_stats_table(year, area, stats_data)
+    render = create_page_and_render ([
+        build_school_stats_table ( year , area , stats_data ),
+        build_area_team_count_bar( year , area , stats_data ),
+        build_area_participant_count_bar(year, area, stats_data),
 
-    return create_page_and_render([table, bar, participant_count_bar])
+    ])
+    return render
 
 ##############################################################################################################
 def build_range_year_report_first_prize_bar(
@@ -533,12 +487,12 @@ def render_first_prize_chart(
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     :return: 可嵌入的HTML+JS代码
     """
-    from demo.services.statistics import get_multi_year_stats_data
-    
-    # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
-        
+    # from demo.services.statistics import get_multi_year_stats_data
+    #
+    # # 如果没有提供stats_data，则自动计算
+    # if stats_data is None:
+    #     stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
+
     bar = build_range_year_report_first_prize_bar(start_year, end_year, area, stats_data)
     table = build_range_year_report_first_prize_table(start_year, end_year, area, stats_data)
     return create_page_and_render([bar, table])
@@ -701,12 +655,6 @@ def render_area_range_chart(
                      也可以是原始的data_by_year格式数据
     :param use_cache: 是否使用缓存（当stats_data为None时有效）
     """
-    from demo.services.statistics import get_multi_year_stats_data
-    
-    # 如果没有提供stats_data，则自动计算
-    if stats_data is None:
-        stats_data = get_multi_year_stats_data(start_year, end_year, area, use_cache)
-    
     # 创建图表
     bar = build_range_year_area_report_participant_count_bar(
         start_year, end_year, area, stats_data
