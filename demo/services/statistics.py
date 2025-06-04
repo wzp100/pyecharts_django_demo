@@ -27,6 +27,7 @@ def extract_schools_from_data(
     schools = list({
         s for stats in data_by_year.values() for s in stats
     })
+    # schools = [ item['school'] for item in data_by_year]
     
     # 计算总和映射
     total_map = {
@@ -42,7 +43,9 @@ def extract_schools_from_data(
 
 # 动态获取SchoolYearlyCache模型中的统计字段
 def get_stat_fields():
-    """获取SchoolYearlyCache模型中的统计字段列表，排除非统计相关字段"""
+    """
+    获取SchoolYearlyCache模型中的统计字段列表，排除非统计相关字段
+    """
     # 排除这些字段，它们不是统计数据字段
     exclude_fields = {'id', 'year', 'area', 'school', 'updated_at'}
     
@@ -149,7 +152,7 @@ def get_area_full_stats(year: int, area: str, use_cache: bool = True) -> dict:
     area_team_counts = get_area_detail_stats(year, area)
 
     # 2) 拿到所有学校年度统计，传递use_cache参数
-    all_stats = get_school_yearly_stats(year, area, use_cache=use_cache)
+    all_stats = get_yearly_area_stats( year , area , use_cache=use_cache )
 
     # 3) 只保留本区学校，并把 team_count 覆盖到 school_stats 里
     school_stats = {}
@@ -215,13 +218,14 @@ def _query_raw_data(year: int, area: str):
         participant_count = Subquery(participant_count_sub_q),
         award_count = Count (
             'team_code' ,
-            filter = ~Q ( preliminary_award = '' ) &
-                     ~Q ( preliminary_award = '重复参赛' )
+            filter =(~Q ( preliminary_award__isnull = True )) &    # 主要靠这个判断是不是null来判断有没有奖
+                    (~Q ( preliminary_award = '' )) &              # 主要用来辅助
+                    (~Q ( preliminary_award = '重复参赛' ))
         ) ,
         qualification_count = Count (
             'team_code' ,
             filter = Q ( preliminary_award = '晋级' ) |
-                     Q( preliminary_award = '一等奖(晋级)' )
+                     Q ( preliminary_award = '一等奖(晋级)' )
         ) ,
         first_prize_count = Count (
             'team_code' ,
@@ -358,7 +362,7 @@ def _flush_cache(year: int, area: str, stats: dict):
 
 
 # ---------- 4. Facade：对外统一接口 ---------- #
-def get_school_yearly_stats(year: int, area: str, use_cache: bool = True) -> dict:
+def get_yearly_area_stats(year: int , area: str , use_cache: bool = True) -> dict:
     """
     获取指定某年赛区各个学校得数据
     1) 命中缓存直接返回（如果use_cache=True）
@@ -378,11 +382,10 @@ def get_school_yearly_stats(year: int, area: str, use_cache: bool = True) -> dic
     # _flush_cache(year, area, stats)
     return stats
 
-def get_school_yearly_stats_range(
+def get_range_yearly_area_stats(
     start_year: int,
     end_year: int,
     area: str,
-    use_cache: bool = True
 ) -> dict[int, dict[str, dict[str, int]]]:
     """
     返回指定赛区在 [start_year, end_year] 区间内，各年份的学校统计数据：
@@ -395,13 +398,12 @@ def get_school_yearly_stats_range(
     :param start_year: 起始年份
     :param end_year: 结束年份
     :param area: 赛区名称
-    :param use_cache: 是否使用缓存，默认为True
     """
-    results: dict[int, dict[str, dict[str, int]]] = {}
-    for y in range(start_year, end_year + 1):
+    results: dict[int, list] = {}
+    for temp_year in range(start_year, end_year + 1):
         # 复用单年函数，传递use_cache参数
-        yearly = get_school_yearly_stats(y, area, use_cache=False)
-        results[y] = yearly
+        yearly = get_yearly_area_stats( temp_year , area , use_cache=False )
+        results[temp_year] = yearly
     return results
 
 # ---------- 5. 图表数据准备 ---------- #

@@ -83,22 +83,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pyecharts_django_demo.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# TODO: 需要想办法将数据库配置分离到单独的文件中
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'yyds',
-#         'USER': 'root',
-#         'PASSWORD': 'mysql133956',
-#         'HOST': 'localhost',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         }
-#     }
-# }
 DATABASES = {
     "default": env.db(
         "DATABASE_URL"

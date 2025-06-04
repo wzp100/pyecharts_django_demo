@@ -1,4 +1,4 @@
-{# templates/demo/area_detail.html #}
+{# templates/demo/range_year_area_report.html #}
 {% extends "base.html" %}
 
 {% block extra_head %}
@@ -16,7 +16,7 @@
 {% endblock %}
 
 {% block content %}
-  <h1>{{ year }}年{{ area }} 详情</h1>
+  <h1>{{ begin_year }}年-{{ end_year }}{{ area }} 详情</h1>
   {{ page_html|safe }}
      <!-- 加在这里：返回上一页按钮 -->
   <div style="margin-top:20px;">

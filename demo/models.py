@@ -96,27 +96,30 @@ class SchoolYearlyCache(models.Model):
     """
     缓存按 年+赛区+学校 汇总的统计数据
     """
-    year       = models.CharField(max_length=4, db_comment='年份')
-    area       = models.CharField(max_length=50, db_comment='赛区')
-    school     = models.CharField(max_length=100, db_comment='学校名称')
-    participant_count      = models.IntegerField(default=0, db_comment='参赛人数')
-    team_count             = models.IntegerField(default=0, db_comment='参赛队伍数量')
-    award_count            = models.IntegerField(default=0, db_comment='获奖数量')
-    first_prize_count      = models.IntegerField(default=0, db_comment='一等奖数量')
-    second_prize_count     = models.IntegerField(default=0, db_comment='二等奖数量')
-    third_prize_count = models.IntegerField(default=0, db_comment='三等奖数量')
-    qualification_count    = models.IntegerField(default=0, db_comment='晋级决赛数量')
-    final_first_prize_count= models.IntegerField(default=0, db_comment='决赛一等奖数量')
-    no_award_team_count    = models.IntegerField(default=0, db_comment='失败的队伍数量')
-    no_award_rate          = models.FloatField(default=0.0, db_comment='未获奖率')
-    award_rate = models.FloatField(default=0.0, db_comment='获奖率')
-    first_prize_rate = models.FloatField(default=0.0, db_comment='一等奖率')
-    second_prize_rate = models.FloatField(default=0.0, db_comment='二等奖率')
-    qualification_rate = models.FloatField(default=0.0, db_comment='晋级决赛率')
-    final_first_prize_rate = models.FloatField(default=0.0, db_comment='决赛一等奖率')
-    updated_at = models.DateTimeField(auto_now=True, db_comment='最后更新时间')
-
-
+    # 基本属性字段
+    year                    = models.CharField(max_length=4, db_comment='年份')
+    area                    = models.CharField(max_length=50, db_comment='赛区')
+    school                  = models.CharField(max_length=100, db_comment='学校名称')
+    # 基本统计字段
+    participant_count       = models.IntegerField(default=0, db_comment='参赛人数')
+    team_count              = models.IntegerField(default=0, db_comment='参赛队伍数量')
+    award_count             = models.IntegerField(default=0, db_comment='获奖数量')
+    first_prize_count       = models.IntegerField(default=0, db_comment='一等奖数量')
+    second_prize_count      = models.IntegerField(default=0, db_comment='二等奖数量')
+    third_prize_count       = models.IntegerField(default=0, db_comment='三等奖数量')
+    qualification_count     = models.IntegerField(default=0, db_comment='晋级决赛数量')
+    final_first_prize_count = models.IntegerField(default=0, db_comment='决赛一等奖数量')
+    no_award_team_count     = models.IntegerField(default=0, db_comment='失败的队伍数量')
+    # 初级计算字段
+    no_award_rate           = models.FloatField(default=0.0, db_comment='未获奖率')
+    award_rate              = models.FloatField(default=0.0, db_comment='获奖率')
+    first_prize_rate        = models.FloatField(default=0.0, db_comment='一等奖率')
+    second_prize_rate       = models.FloatField(default=0.0, db_comment='二等奖率')
+    third_prize_rate        = models.FloatField(default=0.0, db_comment='三等奖率')
+    qualification_rate      = models.FloatField(default=0.0, db_comment='晋级决赛率')
+    final_first_prize_rate  = models.FloatField(default=0.0, db_comment='决赛一等奖率')
+    # 数据记录字段
+    updated_at              = models.DateTimeField(auto_now=True, db_comment='最后更新时间')
     class Meta:
         unique_together = (("year", "area", "school"),)
         indexes = [
@@ -124,34 +127,3 @@ class SchoolYearlyCache(models.Model):
         ]
         verbose_name = "学校年度统计缓存"
         verbose_name_plural = verbose_name
-
-# class AreaStats(models.Model):
-#     """
-#     赛区年度统计信息ORM模型（主要用于导航及数据聚合）
-#     新增subproject（子项目/专项/题目组）字段
-#     """
-#     year = models.CharField(max_length=4, db_comment='年份')
-#     area = models.CharField(max_length=50, db_comment='赛区')
-#     subproject = models.CharField(max_length=100, blank=True, null=True, db_comment='子项目/专项/题目组')
-#     team_count = models.IntegerField(db_comment='队伍数量')
-#     member_count = models.IntegerField(db_comment='参赛人数')
-#
-#     class Meta:
-#         managed = True
-#         db_table = 'area_stats'
-#         app_label = 'demo'
-#         db_tablespace = 'yyds_mysql'
-#
-# class NorthwestSchoolStats(models.Model):
-#     """
-#     西北赛区各学校年度统计ORM模型
-#     """
-#     year = models.CharField(max_length=4, db_comment='年份')
-#     school = models.CharField(max_length=100, db_comment='学校')
-#     team_count = models.IntegerField(db_comment='队伍数量')
-#
-#     class Meta:
-#         managed = True
-#         db_table = 'northwest_school_stats'
-#         app_label = 'demo'
-#         db_tablespace = 'yyds_mysql'

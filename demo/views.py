@@ -3,28 +3,28 @@
 
 from django.shortcuts import render
 from django.http import HttpResponse
-from demo.services.statistics import (
-    get_school_yearly_stats, get_school_yearly_stats_range
-)
-from demo.services.charts import render_area_detail_chart, render_area_range_chart
 
+from demo.services.chartsPage import get_area_detail_page , get_range_year_area_report_page
+from demo.services.statistics import (
+    get_yearly_area_stats, get_range_yearly_area_stats
+)
+
+# 要不要改为数据库查询？
 AREAS = [
       '东北赛区','上海赛区','西南赛区','华东赛区',
       '西北赛区','华中赛区','华北赛区','华南赛区',
       '海外及港澳台赛区'
     ]
-
+YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
 def navigation_view(request):
     """
     显示导航页，包含年份和赛区选择
     :param request:
     :return:
     """
-    years = [2019, 2020, 2021, 2022, 2023, 2024]
-    
     return render(request, 'demo/navigation.html', {
-        'years': years,
-        'areas': AREAS,
+        'years': YEARS,
+        'areas': AREAS
     })
 
 def range_year_report_all_area_view(request):
@@ -47,10 +47,15 @@ def range_year_area_report_view(request, start_year: int, end_year: int, area: s
     :return:
     """
     # 获取了一个总的统计数据
-    range_year_stats = get_school_yearly_stats_range(start_year, end_year, area)
+    range_year_stats = get_range_yearly_area_stats( start_year , end_year , area )
     # 都是放在同一个页面里面的
-    page = render_area_range_chart(start_year, end_year, area, range_year_stats)
-    return HttpResponse(page.render_embed())
+    page_html = get_range_year_area_report_page(start_year, end_year, area, range_year_stats)
+    return render( request , 'demo/range_year_area_report.html' ,{
+        'start_year': start_year,
+        'end_year' : end_year,
+        'area' : area,
+        'page_html': page_html
+    })
 
 
 def area_detail_view(request, year: int, area: str):
@@ -61,17 +66,17 @@ def area_detail_view(request, year: int, area: str):
     """
     if area not in AREAS:
         return HttpResponse(f"<h1>{year}年{area}不存在</h1>")
-    stats = get_school_yearly_stats(year, area, False)
+    stats = get_yearly_area_stats( year , area , False )
     if not stats:
         return HttpResponse(f"<h1>{year}年{area}暂无数据</h1>")
 
     # 只需一行调用，就能得到完整的 chart HTML
-    chart_html = render_area_detail_chart(year, area, stats)
+    page_html = get_area_detail_page(year, area, stats)
     return render(request, 'demo/area_detail.html', {
         'year': year,
         'area': area,
         'stats': stats,
-        'chart_html': chart_html,
+        'page_html': page_html,
     })
 
 def yearly_report_view(request, year: int):
@@ -84,6 +89,6 @@ def yearly_report_view(request, year: int):
     return HttpResponse(f"<h1>{year}年xx赛区分析暂未开发</h1>")
     
 def school_detail_view(request, year: int, school: str):
-    return HttpResponse(f"<h1>{year}年{school}统计数据未找到</h1>")
+    return HttpResponse(f"<h1>{year}年{school}统计数据暂未开发</h1>")
 
 
